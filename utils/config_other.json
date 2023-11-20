@@ -1,0 +1,73 @@
+{
+  "name": "Test",
+  "n_gpu": 1,
+  "preprocessing": {
+    "sr": 16000,
+    "spectrogram": {
+      "type": "MelSpectrogram",
+      "args": {
+      }
+    },
+    "log_spec": true
+  },
+  "arch": {
+    "type": "DeepSpeech2",
+    "args": {
+      "input_dim": 128,
+      "fc_hidden": 1600,
+      "gru_hidden": 800
+    }
+  },
+  "data": {
+    "test": {
+      "batch_size": 32,
+      "num_workers": 5,
+      "datasets": [
+        {
+          "type": "LibrispeechDataset",
+          "args": {
+            "part": "test-other"
+          }
+        }
+      ]
+    }
+  },
+  "metrics": [
+    {
+      "type": "ArgmaxWERMetric",
+      "args": {
+        "name": "WER (argmax)"
+      }
+    },
+    {
+      "type": "ArgmaxCERMetric",
+      "args": {
+        "name": "CER (argmax)"
+      }
+    },
+    {
+      "type": "BeamsearchWERMetric",
+      "args": {
+        "name": "WER (argmax)"
+      }
+    },
+    {
+      "type": "BeamsearchCERMetric",
+      "args": {
+        "name": "CER (argmax)"
+      }
+    }
+  ],
+  "trainer": {
+    "epochs": 200,
+    "save_dir": "saved/",
+    "save_period": 5,
+    "verbosity": 2,
+    "monitor": "min val_loss",
+    "early_stop": 200,
+    "visualize": "wandb",
+    "wandb_project": "ss_project",
+    "len_epoch": 100,
+    "grad_norm_clip": 10
+  }
+}

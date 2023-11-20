@@ -1,0 +1,116 @@
+{
+  "name": "Spex+Hope",
+  "n_gpu": 1,
+  "preprocessing": {
+      "sr": 16000
+  },
+  "augmentations": {
+      "wave": [],
+      "spectrogram": []
+  },
+  "arch": {
+      "type": "SpExPlus",
+      "args": {
+        "L1": 40,
+        "L2": 160,
+        "L3": 320,
+        "N": 256,
+        "proj_dim": 256,
+        "tcn_extractor_hidden": 256,
+        "num_speakers": 251
+      }
+  },
+  "data": {
+      "train": {
+          "batch_size": 3,
+          "num_workers": 5,
+          "datasets": [
+              {
+                  "type": "LibrispeechDataset",
+                  "args": {
+                      "part": "train-clean-100",
+                      "max_audio_length": 3.5,
+                      "nfiles": 10000
+                  }
+              }
+          ]
+      },
+      "val": {
+          "batch_size": 1,
+          "num_workers": 5,
+          "datasets": [
+              {
+                  "type": "LibrispeechDataset",
+                  "args": {
+                      "part": "dev-clean",
+                      "test": true,
+                      "limit": 100
+                  }
+              }
+          ]
+      },
+      "test-clean": {
+          "batch_size": 1,
+          "num_workers": 5,
+          "datasets": [
+              {
+                  "type": "LibrispeechDataset",
+                  "args": {
+                      "part": "test-clean",
+                      "test": true,
+                      "limit": 200
+                  }
+              }
+          ]
+      }
+  },
+  "optimizer": {
+      "type": "Adam",
+      "args": {
+          "lr": 0.001
+      }
+  },
+  "loss": {
+      "type": "SpExLoss",
+      "args": {
+        "alpha": 0.1,
+        "beta": 0.1,
+        "gamma": 0.5
+      }
+  },
+  "metrics": [
+      {
+          "type": "SiSDRMetric",
+          "args": {
+              "name": "SiSDR"
+          }
+      },
+      {
+          "type": "PESQMetric",
+          "args": {
+              "name": "PESQ"
+          }
+      }
+  ],
+  "lr_scheduler": {
+      "type": "ReduceLROnPlateau",
+      "args": {
+          "factor": 0.5,
+          "mode": "max",
+          "patience": 5,
+          "cooldown": 15
+      }
+  },
+  "trainer": {
+      "epochs": 100,
+      "save_dir": "saved/",
+      "save_period": 5,
+      "verbosity": 2,
+      "monitor": "max val_SiSDR",
+      "early_stop": 100,
+      "visualize": "wandb",
+      "wandb_project": "ss_project",
+      "len_epoch": 500,
+      "grad_norm_clip": 10
+  }
+}
