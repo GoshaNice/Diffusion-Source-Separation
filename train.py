@@ -16,6 +16,7 @@ from src.trainer import Trainer
 from src.utils import prepare_device
 from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
+from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
 
 
 # fix random seeds for reproducibility
@@ -33,7 +34,9 @@ def main(config):
     dataloaders = get_dataloaders(config)
 
     # build model architecture, then print to console
-    model = config.init_obj(config["arch"], module_arch)
+    sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
+    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    model = config.init_obj(config["arch"], module_arch, sepformer, diffwave)
     logger.info(model)
 
     # prepare for (multi-device) GPU training
