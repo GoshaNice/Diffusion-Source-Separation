@@ -1,6 +1,6 @@
 {
-  "name": "Spex+Hope",
-  "n_gpu": 1,
+  "name": "SeparateAndDiffuse",
+  "n_gpu": 0,
   "preprocessing": {
       "sr": 8000
   },
@@ -14,7 +14,7 @@
   },
   "data": {
       "train": {
-          "batch_size": 3,
+          "batch_size": 1,
           "num_workers": 5,
           "datasets": [
               {
@@ -63,12 +63,8 @@
       }
   },
   "loss": {
-      "type": "SpExLoss",
-      "args": {
-        "alpha": 0.1,
-        "beta": 0.1,
-        "gamma": 0.5
-      }
+      "type": "SepDiffLoss",
+      "args": {}
   },
   "metrics": [
       {

@@ -53,14 +53,13 @@ class Trainer(BaseTrainer):
         self.log_step = 50
 
         self.train_metrics = MetricTracker(
-            "accuracy",
             "loss",
             "grad norm",
             *[m.name for m in self.metrics],
             writer=self.writer,
         )
         self.evaluation_metrics = MetricTracker(
-            "accuracy", "loss", *[m.name for m in self.metrics], writer=self.writer
+            "loss", *[m.name for m in self.metrics], writer=self.writer
         )
 
     @staticmethod
@@ -146,16 +145,8 @@ class Trainer(BaseTrainer):
         batch = self.move_batch_to_device(batch, self.device)
         if is_train:
             self.optimizer.zero_grad()
-        s1, s2, s3, logits = self.model(**batch)
-        batch["s1"] = s1
-        batch["s2"] = s2
-        batch["s3"] = s3
-        batch["prediction"] = s1
-        batch["logits"] = logits
-
-        probs = F.softmax(logits.squeeze(1), dim=-1)
-        labels = probs.argmax(dim=1)
-        accuracy = (labels == batch["target_id"]).sum().item()
+        prediction = self.model(**batch)
+        batch["prediction"] = prediction
 
         batch["loss"] = self.criterion(**batch)
         if is_train:
@@ -163,7 +154,6 @@ class Trainer(BaseTrainer):
             self._clip_grad_norm()
             self.optimizer.step()
 
-        metrics.update("accuracy", accuracy)
         metrics.update("loss", batch["loss"].item())
         for met in self.metrics:
             metrics.update(met.name, met(**batch))

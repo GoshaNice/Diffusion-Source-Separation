@@ -32,15 +32,17 @@ def main(config):
 
     # setup data_loader instances
     dataloaders = get_dataloaders(config)
+    # prepare for (multi-device) GPU training
+    device, device_ids = prepare_device(config["n_gpu"])
 
     # build model architecture, then print to console
     sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
     diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    sepformer.device = device
+    diffwave.device = device
     model = config.init_obj(config["arch"], module_arch, sepformer, diffwave)
     logger.info(model)
 
-    # prepare for (multi-device) GPU training
-    device, device_ids = prepare_device(config["n_gpu"])
     model = model.to(device)
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
