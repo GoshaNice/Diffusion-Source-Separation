@@ -66,43 +66,50 @@ class SeparateAndDiffuse(nn.Module):
         """
         mix: torch.Tensor with shape (B, L)
         """
+        #mix should be resempled to 8khz
         output = self.backbone(mix)  # (B, L, 2)
-        vd = output[:, :, 0]  # (B, L)
+        output = output.squeeze().transpose(0, 1)
+        #vd = output[:, :, 0]  # (B, L)
+        predictions = []
+        for i in range(output.shape[0]):
+            vd = output[i:i+1] # (B, L)
+            
+            #vd should be resempled to 22.05khz
+            spec_vd = self.wav2spec(vd)  # (B, Mels, T)
+            hop_length = self.wav2spec.config.hop_length
+            vg= self.GM.decode_batch(mel=spec_vd, hop_len=hop_length, fast_sampling=True, fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5])  # (B, L)
+            vg = vg[:, : vd.shape[1]]
 
-        spec_vd = self.wav2spec(vd)  # (B, Mels, T)
-        hop_length = self.wav2spec.config.hop_length
-        vg = self.GM.decode_batch(mel=spec_vd, hop_len=hop_length)  # (B, L)
-        vg = vg[:, : vd.shape[1]]
+            Vg_hat = torch.stft(
+                vg, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
+            )  # (B, N_fft, K)
+            Vd_hat = torch.stft(
+                vd, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
+            )  # (B, N_fft, K)
 
-        Vg_hat = torch.stft(
-            vg, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
-        )  # (B, N_fft, K)
-        Vd_hat = torch.stft(
-            vd, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
-        )  # (B, N_fft, K)
+            phase = torch.cat(
+                [
+                    angle(Vd_hat).unsqueeze(1),
+                    angle(Vg_hat * torch.conj(Vd_hat)).unsqueeze(1),
+                ],
+                dim=1,
+            )  # (B, 2, N_fft, K)
 
-        phase = torch.cat(
-            [
-                angle(Vd_hat).unsqueeze(1),
-                angle(Vg_hat * torch.conj(Vd_hat)).unsqueeze(1),
-            ],
-            dim=1,
-        )  # (B, 2, N_fft, K)
+            magnitude = torch.cat(
+                [get_magnitude(Vd_hat).unsqueeze(1), get_magnitude(Vg_hat).unsqueeze(1)],
+                dim=1,
+            )  # (B, 2, N_fft, K)
 
-        magnitude = torch.cat(
-            [get_magnitude(Vd_hat).unsqueeze(1), get_magnitude(Vg_hat).unsqueeze(1)],
-            dim=1,
-        )  # (B, 2, N_fft, K)
+            D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
+            D1 = self.ResnetHeadMagnitude(magnitude)  # (B, 2, N_fft, K)
 
-        D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
-        D1 = self.ResnetHeadMagnitude(magnitude)  # (B, 2, N_fft, K)
+            Q = D1 * torch.exp(D2.mul(-1j))  # (B, 2, N_fft, K)
 
-        Q = D1 * torch.exp(D2.mul(-1j))  # (B, 2, N_fft, K)
+            alpha = Q[:, 0:1]  # (B, 1, N_fft, K)
+            beta = Q[:, 1:2]  # (B, 1, N_fft, K)
 
-        alpha = Q[:, 0:1]  # (B, 1, N_fft, K)
-        beta = Q[:, 1:2]  # (B, 1, N_fft, K)
+            V_hat = (alpha * Vd_hat + beta * Vg_hat).squeeze(1)  # (B, N_fft, K)
 
-        V_hat = (alpha * Vd_hat + beta * Vg_hat).squeeze(1)  # (B, N_fft, K)
-
-        prediction = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
-        return prediction
+            prediction = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
+            predictions.append(prediction)
+        return predictions

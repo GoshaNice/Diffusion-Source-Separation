@@ -74,7 +74,6 @@ class LibrispeechDataset(BaseDataset):
 
     def _create_index(self, part):
         index = []
-        """
         split_dir = self._data_dir / part
         if not split_dir.exists():
             self._load_part(part)
@@ -111,11 +110,10 @@ class LibrispeechDataset(BaseDataset):
                 update_steps=100,
                 audioLen=3,
             )
-        """
-        out_folder = self._data_dir / f"{part}_ss"
 
         ref = sorted(glob(os.path.join(out_folder, "*-ref.wav")))
         mix = sorted(glob(os.path.join(out_folder, "*-mixed.wav")))
+        noise = sorted(glob(os.path.join(out_folder, "*-noise.wav")))
         target = sorted(glob(os.path.join(out_folder, "*-target.wav")))
 
         map_target_speaker = {}
@@ -142,6 +140,10 @@ class LibrispeechDataset(BaseDataset):
             target_path = target[i]
             target_info = torchaudio.info(target_path)
             target_length = target_info.num_frames / target_info.sample_rate
+            
+            noise_path = noise[i]
+            noise_info = torchaudio.info(noise_path)
+            noise_length = noise_info.num_frames / noise_info.sample_rate
 
             target_id = ref_path.split("/")[-1].split("_")[0]
             index.append(
@@ -152,6 +154,8 @@ class LibrispeechDataset(BaseDataset):
                     "mix_length": mix_length,
                     "target": target_path,
                     "target_length": target_length,
+                    "noise": noise_path,
+                    "noise_length": noise_length,
                     "target_id": map_target_speaker[target_id],
                     "total_speakers": total_speakers,
                 }

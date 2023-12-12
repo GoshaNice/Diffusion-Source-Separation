@@ -113,3 +113,4 @@ pretrained_models/
 .vscode/
 .idea/
 __MACOSX/
+*.DS_Store

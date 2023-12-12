@@ -42,6 +42,8 @@ class BaseDataset(Dataset):
         ref = self.load_audio(ref_path)
         target_path = data_dict["target"]
         target = self.load_audio(target_path)
+        noise_path = data_dict["noise"]
+        noise = self.load_audio(noise_path)
         return {
             "mix": mix,
             "mix_length": data_dict["mix_length"],
@@ -49,6 +51,8 @@ class BaseDataset(Dataset):
             "ref_length": data_dict["ref_length"],
             "target": target,
             "target_length": data_dict["target_length"],
+            "noise": noise,
+            "noise_length": data_dict["noise_length"],
             "target_id": data_dict["target_id"],
         }
 

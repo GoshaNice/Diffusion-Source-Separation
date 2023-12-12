@@ -36,7 +36,7 @@
                   "args": {
                       "part": "dev-clean",
                       "test": true,
-                      "limit": 100
+                      "limit": 10
                   }
               }
           ]
@@ -50,7 +50,7 @@
                   "args": {
                       "part": "test-clean",
                       "test": true,
-                      "limit": 200
+                      "limit": 10
                   }
               }
           ]
@@ -72,12 +72,6 @@
           "args": {
               "name": "SiSDR"
           }
-      },
-      {
-          "type": "PESQMetric",
-          "args": {
-              "name": "PESQ"
-          }
       }
   ],
   "lr_scheduler": {
@@ -90,7 +84,7 @@
       }
   },
   "trainer": {
-      "epochs": 100,
+      "epochs": 10,
       "save_dir": "saved/",
       "save_period": 5,
       "verbosity": 2,
@@ -98,7 +92,7 @@
       "early_stop": 100,
       "visualize": "wandb",
       "wandb_project": "diffusion_ss_project",
-      "len_epoch": 500,
+      "len_epoch": 10,
       "grad_norm_clip": 10
   }
 }

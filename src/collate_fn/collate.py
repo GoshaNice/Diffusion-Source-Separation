@@ -64,5 +64,22 @@ def collate_fn(dataset_items: List[dict]):
     result_batch["target_id"] = torch.tensor(
         [item["target_id"] for item in dataset_items]
     )
+    
+    result_batch["noise_length"] = torch.tensor(
+        [item["noise"].shape[-1] for item in dataset_items]
+    )
+    max_noise_length = torch.max(result_batch["noise_length"]).item()
+    noises = []
+    for item in dataset_items:
+        noise = item["noise"]
+        noises.append(
+            F.pad(
+                noise,
+                (0, int(max_noise_length - noise.shape[-1])),
+                "constant",
+                0,
+            )
+        )
+    result_batch["noise"] = torch.cat(noises, dim=0)
 
     return result_batch

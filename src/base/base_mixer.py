@@ -113,6 +113,9 @@ def create_mix(idx, triplet, snr_levels, out_dir, test=False, sr=16000, **kwargs
     path_target = os.path.join(
         out_dir, f"{target_id}_{noise_id}_" + "%06d" % idx + "-target.wav"
     )
+    path_noise = os.path.join(
+        out_dir, f"{target_id}_{noise_id}_" + "%06d" % idx + "-noise.wav"
+    )
     path_ref = os.path.join(
         out_dir, f"{target_id}_{noise_id}_" + "%06d" % idx + "-ref.wav"
     )
@@ -128,26 +131,36 @@ def create_mix(idx, triplet, snr_levels, out_dir, test=False, sr=16000, **kwargs
 
             louds1 = meter.integrated_loudness(s1_cut[i])
             s1_cut[i] = pyln.normalize.loudness(s1_cut[i], louds1, -23.0)
+            
+            louds2 = meter.integrated_loudness(s2_cut[i])
+            s2_cut[i] = pyln.normalize.loudness(s2_cut[i], louds2, -23.0)
+
             loudMix = meter.integrated_loudness(mix)
             mix = pyln.normalize.loudness(mix, loudMix, -23.0)
 
             path_mix_i = path_mix.replace("-mixed.wav", f"_{i}-mixed.wav")
             path_target_i = path_target.replace("-target.wav", f"_{i}-target.wav")
+            path_noise_i = path_noise.replace("-noise.wav", f"_{i}-noise.wav")
             path_ref_i = path_ref.replace("-ref.wav", f"_{i}-ref.wav")
             sf.write(path_mix_i, mix, sr)
             sf.write(path_target_i, s1_cut[i], sr)
+            sf.write(path_noise_i, s2_cut[i], sr)
             sf.write(path_ref_i, ref, sr)
     else:
         s1, s2 = fix_length(s1, s2, "max")
         mix = snr_mixer(s1, s2, snr)
         louds1 = meter.integrated_loudness(s1)
         s1 = pyln.normalize.loudness(s1, louds1, -23.0)
+        
+        louds2 = meter.integrated_loudness(s2)
+        s2 = pyln.normalize.loudness(s2, louds2, -23.0)
 
         loudMix = meter.integrated_loudness(mix)
         mix = pyln.normalize.loudness(mix, loudMix, -23.0)
 
         sf.write(path_mix, mix, sr)
         sf.write(path_target, s1, sr)
+        sf.write(path_noise, s2, sr)
         sf.write(path_ref, ref, sr)
 
 
