@@ -67,7 +67,14 @@ class Trainer(BaseTrainer):
         """
         Move all necessary tensors to the HPU
         """
-        for tensor_for_gpu in ["mix", "ref", "ref_length", "target_id", "target", "noise"]:
+        for tensor_for_gpu in [
+            "mix",
+            "ref",
+            "ref_length",
+            "target_id",
+            "target",
+            "noise",
+        ]:
             batch[tensor_for_gpu] = batch[tensor_for_gpu].to(device)
         return batch
 
@@ -120,7 +127,7 @@ class Trainer(BaseTrainer):
                         float(self.lr_scheduler.optimizer.param_groups[0]["lr"]),
                     )
 
-                #self._log_audio(batch["prediction"], batch["ref"], batch["target"])
+                # self._log_audio(batch["prediction"], batch["ref"], batch["target"])
                 self._log_scalars(self.train_metrics)
                 # we don't want to reset train metrics at the start of every epoch
                 # because we are interested in recent train metrics
@@ -147,6 +154,11 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
         prediction = self.model(**batch)
         batch["prediction"] = prediction
+        if not is_train and (
+            torch.any(torch.isnan(prediction[0])).item()
+            or torch.any(torch.isnan(prediction[1])).item()
+        ):
+            print("On inference we have nans")
 
         batch["loss"] = self.criterion(**batch)
         if is_train:
@@ -181,7 +193,7 @@ class Trainer(BaseTrainer):
                 )
             self.writer.set_step(epoch * self.len_epoch, part)
             self._log_scalars(self.evaluation_metrics)
-            #self._log_audio(batch["prediction"], batch["ref"], batch["target"])
+            # self._log_audio(batch["prediction"], batch["ref"], batch["target"])
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():

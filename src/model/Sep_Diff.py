@@ -13,7 +13,8 @@ def angle(x: torch.Tensor):
     output:
         x: torch.Tensor with shape (B, N_fft, K)
     """
-    return torch.atan(x.imag / x.real)
+    eps = 1e-9
+    return torch.atan(x.imag / (x.real + eps))
 
 
 def get_magnitude(x: torch.Tensor):
@@ -57,34 +58,49 @@ class SeparateAndDiffuse(nn.Module):
     def __init__(self, separator: nn.Module, diffwave: nn.Module):
         super(SeparateAndDiffuse, self).__init__()
         self.backbone = separator
+        for param in self.backbone.parameters():
+            param.requires_grad = False
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
+        for param in self.GM.parameters():
+            param.requires_grad = False
         self.ResnetHeadPhase = ResNetHead()
         self.ResnetHeadMagnitude = ResNetHead()
 
     def forward(self, mix, **batch):
         """
-        mix: torch.Tensor with shape (B, L)
+        mix: torch.Tensor with shape (B, L) for some reasons B = 1 now
         """
-        #mix should be resempled to 8khz
+        # mix should be resempled to 8khz TODO
         output = self.backbone(mix)  # (B, L, 2)
         output = output.squeeze().transpose(0, 1)
-        #vd = output[:, :, 0]  # (B, L)
+        # vd = output[:, :, 0]  # (B, L)
         predictions = []
         for i in range(output.shape[0]):
-            vd = output[i:i+1] # (B, L)
-            
-            #vd should be resempled to 22.05khz
+            vd = output[i : i + 1]  # (B, L)
+            # vd should be resempled to 22.05khz TODO
             spec_vd = self.wav2spec(vd)  # (B, Mels, T)
             hop_length = self.wav2spec.config.hop_length
-            vg= self.GM.decode_batch(mel=spec_vd, hop_len=hop_length, fast_sampling=True, fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5])  # (B, L)
+            vg = self.GM.decode_batch(
+                mel=spec_vd,
+                hop_len=hop_length,
+                fast_sampling=True,
+                fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5],
+            )  # (B, L)
             vg = vg[:, : vd.shape[1]]
 
             Vg_hat = torch.stft(
-                vg, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
+                vg,
+                n_fft=self.wav2spec.config.n_fft,
+                onesided=False,
+                return_complex=True,
             )  # (B, N_fft, K)
+
             Vd_hat = torch.stft(
-                vd, n_fft=self.wav2spec.config.n_fft, onesided=False, return_complex=True
+                vd,
+                n_fft=self.wav2spec.config.n_fft,
+                onesided=False,
+                return_complex=True,
             )  # (B, N_fft, K)
 
             phase = torch.cat(
@@ -96,7 +112,10 @@ class SeparateAndDiffuse(nn.Module):
             )  # (B, 2, N_fft, K)
 
             magnitude = torch.cat(
-                [get_magnitude(Vd_hat).unsqueeze(1), get_magnitude(Vg_hat).unsqueeze(1)],
+                [
+                    get_magnitude(Vd_hat).unsqueeze(1),
+                    get_magnitude(Vg_hat).unsqueeze(1),
+                ],
                 dim=1,
             )  # (B, 2, N_fft, K)
 

@@ -41,13 +41,13 @@ class SepDiffLoss(nn.Module):
         prediction[1], noise = self.pad_to_target(prediction[1], noise)
         loss1 = -calc_si_sdr(prediction[0], target)
         loss1 -= calc_si_sdr(prediction[1], noise)
-        
+
         prediction[1], target = self.pad_to_target(prediction[1], target)
         prediction[0], noise = self.pad_to_target(prediction[0], noise)
         loss2 = -calc_si_sdr(prediction[1], target)
         loss2 -= calc_si_sdr(prediction[0], noise)
-        
+
         if loss1 < loss2:
-            return loss1.mean()
+            return loss1.mean() / 2
         else:
-            return loss2.mean()
+            return loss2.mean() / 2

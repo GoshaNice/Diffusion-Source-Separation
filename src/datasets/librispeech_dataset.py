@@ -140,7 +140,7 @@ class LibrispeechDataset(BaseDataset):
             target_path = target[i]
             target_info = torchaudio.info(target_path)
             target_length = target_info.num_frames / target_info.sample_rate
-            
+
             noise_path = noise[i]
             noise_info = torchaudio.info(noise_path)
             noise_length = noise_info.num_frames / noise_info.sample_rate

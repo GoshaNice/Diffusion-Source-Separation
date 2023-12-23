@@ -1,6 +1,6 @@
 {
   "name": "SeparateAndDiffuse",
-  "n_gpu": 0,
+  "n_gpu": 1,
   "preprocessing": {
       "sr": 8000
   },
@@ -36,7 +36,7 @@
                   "args": {
                       "part": "dev-clean",
                       "test": true,
-                      "limit": 10
+                      "limit": 100
                   }
               }
           ]
@@ -50,7 +50,7 @@
                   "args": {
                       "part": "test-clean",
                       "test": true,
-                      "limit": 10
+                      "limit": 100
                   }
               }
           ]
@@ -74,15 +74,7 @@
           }
       }
   ],
-  "lr_scheduler": {
-      "type": "ReduceLROnPlateau",
-      "args": {
-          "factor": 0.5,
-          "mode": "max",
-          "patience": 5,
-          "cooldown": 15
-      }
-  },
+  "lr_scheduler": {},
   "trainer": {
       "epochs": 10,
       "save_dir": "saved/",
@@ -92,7 +84,7 @@
       "early_stop": 100,
       "visualize": "wandb",
       "wandb_project": "diffusion_ss_project",
-      "len_epoch": 10,
+      "len_epoch": 100,
       "grad_norm_clip": 10
   }
 }

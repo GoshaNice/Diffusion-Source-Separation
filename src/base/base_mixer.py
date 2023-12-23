@@ -131,7 +131,7 @@ def create_mix(idx, triplet, snr_levels, out_dir, test=False, sr=16000, **kwargs
 
             louds1 = meter.integrated_loudness(s1_cut[i])
             s1_cut[i] = pyln.normalize.loudness(s1_cut[i], louds1, -23.0)
-            
+
             louds2 = meter.integrated_loudness(s2_cut[i])
             s2_cut[i] = pyln.normalize.loudness(s2_cut[i], louds2, -23.0)
 
@@ -151,7 +151,7 @@ def create_mix(idx, triplet, snr_levels, out_dir, test=False, sr=16000, **kwargs
         mix = snr_mixer(s1, s2, snr)
         louds1 = meter.integrated_loudness(s1)
         s1 = pyln.normalize.loudness(s1, louds1, -23.0)
-        
+
         louds2 = meter.integrated_loudness(s2)
         s2 = pyln.normalize.loudness(s2, louds2, -23.0)
 
