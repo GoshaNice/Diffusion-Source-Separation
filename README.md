@@ -2,6 +2,8 @@
 
 #### Implemented by: Pistsov Georgiy 202
 
+You can find experiments details [here](https://wandb.ai/goshanice/diffusion_ss_project/overview?workspace=user-goshanice)
+
 ## Installation guide
 
 Current repository is for Linux
