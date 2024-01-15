@@ -48,6 +48,12 @@ class SepDiffLoss(nn.Module):
         loss2 -= calc_si_sdr(prediction[0], noise)
 
         if loss1 < loss2:
-            return loss1.mean() / 2
+            prediction_target = prediction[0]
+            prediction_noise = prediction[1]
+            final_loss = loss1.mean() / 2
         else:
-            return loss2.mean() / 2
+            prediction_target = prediction[1]
+            prediction_noise = prediction[0]
+            final_loss = loss2.mean() / 2
+
+        return prediction_target, prediction_noise, final_loss

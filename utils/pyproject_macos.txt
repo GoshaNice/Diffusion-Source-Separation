@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "ss-project-hw1"
+name = "diffusion_ss_project"
 version = "0.1.0"
-description = "SS Project HW1"
+description = "SS Project Diploma"
 authors = ["Gosha <gkpistsov@edu.hse.ru>"]
 readme = "README.md"
 packages = [{include = "src"}]

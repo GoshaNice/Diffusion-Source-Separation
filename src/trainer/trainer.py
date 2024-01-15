@@ -160,7 +160,11 @@ class Trainer(BaseTrainer):
         ):
             print("On inference we have nans")
 
-        batch["loss"] = self.criterion(**batch)
+        (
+            batch["prediction_target"],
+            batch["prediction_noise"],
+            batch["loss"],
+        ) = self.criterion(**batch)
         if is_train:
             batch["loss"].backward()
             self._clip_grad_norm()
@@ -193,7 +197,18 @@ class Trainer(BaseTrainer):
                 )
             self.writer.set_step(epoch * self.len_epoch, part)
             self._log_scalars(self.evaluation_metrics)
-            # self._log_audio(batch["prediction"], batch["ref"], batch["target"])
+            self._log_audio(
+                prediction_batch=batch["prediction_target"],
+                target_batch=batch["target"],
+                prediction_label="prediction_target",
+                target_label="target",
+            )
+            self._log_audio(
+                prediction_batch=batch["prediction_noise"],
+                target_batch=batch["noise"],
+                prediction_label="prediction_noise",
+                target_label="noise",
+            )
 
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
@@ -215,19 +230,29 @@ class Trainer(BaseTrainer):
         image = PIL.Image.open(plot_spectrogram_to_buf(spectrogram))
         self.writer.add_image("spectrogram", ToTensor()(image))
 
-    def _log_audio(self, prediction_batch, ref_batch, target_batch):
+    def _log_audio(
+        self,
+        prediction_batch,
+        target_batch,
+        prediction_label="prediction",
+        target_label="target",
+        ref_batch=None,
+    ):
         ind = random.choice(torch.arange(prediction_batch.shape[0]))
         prediction = prediction_batch[ind].squeeze(0).detach().cpu().numpy()
-        meter = pyln.Meter(16000)  # create BS.1770 meter
+        sampling_rate = self.config["preprocessing"]["sr"]
+        meter = pyln.Meter(sampling_rate)
         loud_prediction = meter.integrated_loudness(prediction)
         prediction = pyln.normalize.loudness(prediction, loud_prediction, -20)
         prediction = torch.from_numpy(prediction).unsqueeze(0)
+        self.writer.add_audio(prediction_label, prediction, sample_rate=sampling_rate)
 
-        ref = ref_batch[ind].detach().cpu()
+        if ref_batch is not None:
+            ref = ref_batch[ind].detach().cpu()
+            self.writer.add_audio("ref", ref, sample_rate=sampling_rate)
+
         target = target_batch[ind].detach().cpu()
-        self.writer.add_audio("prediction", prediction, sample_rate=16000)
-        self.writer.add_audio("ref", ref, sample_rate=16000)
-        self.writer.add_audio("target", target, sample_rate=16000)
+        self.writer.add_audio(target_label, target, sample_rate=sampling_rate)
 
     @torch.no_grad()
     def get_grad_norm(self, norm_type=2):
