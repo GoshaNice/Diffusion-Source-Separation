@@ -11,16 +11,12 @@ class PESQMetric(BaseMetric):
 
     def __call__(
         self,
-        prediction_target: Tensor,
-        prediction_noise: Tensor,
+        prediction: Tensor,
         target: Tensor,
-        noise: Tensor,
         **kwargs
     ):
         # prediction = prediction.squeeze(1)
-        prediction_target, target = self.pad_to_target(prediction_target, target)
-        pesq = self.pesq(prediction_target, target)
+        prediction, target = self.pad_to_target(prediction, target)
+        pesq = self.pesq(prediction, target)
 
-        prediction_noise, target = self.pad_to_target(prediction_noise, noise)
-        pesq += self.pesq(prediction_noise, noise)
-        return pesq.mean() / 2
+        return pesq.mean()

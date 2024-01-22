@@ -154,17 +154,7 @@ class Trainer(BaseTrainer):
             self.optimizer.zero_grad()
         prediction = self.model(**batch)
         batch["prediction"] = prediction
-        if not is_train and (
-            torch.any(torch.isnan(prediction[0])).item()
-            or torch.any(torch.isnan(prediction[1])).item()
-        ):
-            print("On inference we have nans")
-
-        (
-            batch["prediction_target"],
-            batch["prediction_noise"],
-            batch["loss"],
-        ) = self.criterion(**batch)
+        batch["loss"] = self.criterion(**batch)
         if is_train:
             batch["loss"].backward()
             self._clip_grad_norm()
@@ -198,16 +188,10 @@ class Trainer(BaseTrainer):
             self.writer.set_step(epoch * self.len_epoch, part)
             self._log_scalars(self.evaluation_metrics)
             self._log_audio(
-                prediction_batch=batch["prediction_target"],
+                prediction_batch=batch["prediction"],
                 target_batch=batch["target"],
-                prediction_label="prediction_target",
+                prediction_label="prediction",
                 target_label="target",
-            )
-            self._log_audio(
-                prediction_batch=batch["prediction_noise"],
-                target_batch=batch["noise"],
-                prediction_label="prediction_noise",
-                target_label="noise",
             )
 
         # add histogram of model parameters to the tensorboard

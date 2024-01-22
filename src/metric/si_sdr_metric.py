@@ -34,16 +34,12 @@ class SiSDRMetric(BaseMetric):
 
     def __call__(
         self,
-        prediction_target: Tensor,
-        prediction_noise: Tensor,
+        prediction: Tensor,
         target: Tensor,
-        noise: Tensor,
         **kwargs
     ):
-        self.sisdr = self.sisdr.to(prediction_target.device)
-        prediction_target, target = self.pad_to_target(prediction_target, target)
-        prediction_noise, noise = self.pad_to_target(prediction_noise, noise)
-        sisdr = self.sisdr(prediction_target, target)
-        sisdr += self.sisdr(prediction_noise, noise)
+        self.sisdr = self.sisdr.to(prediction.device)
+        prediction, target = self.pad_to_target(prediction, target)
+        sisdr = self.sisdr(prediction, target)
 
-        return sisdr.mean() / 2
+        return sisdr.mean()

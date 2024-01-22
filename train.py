@@ -17,6 +17,7 @@ from src.utils import prepare_device
 from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
 from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
+from src.model.spex_plus import SpExPlus
 
 
 # fix random seeds for reproducibility
@@ -36,11 +37,14 @@ def main(config):
     device, device_ids = prepare_device(config["n_gpu"])
 
     # build model architecture, then print to console
-    sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
+    #sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
+    checkpoint = torch.load("pretrained_models/spexplus/checkpoint-epoch50_spex.pth", map_location=device)
+    separator = SpExPlus().to(device)
+    separator.load_state_dict(checkpoint["state_dict"])
     diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
-    sepformer.device = device
+    #sepformer.device = device
     diffwave.device = device
-    model = config.init_obj(config["arch"], module_arch, sepformer, diffwave)
+    model = config.init_obj(config["arch"], module_arch, separator, diffwave)
     logger.info(model)
 
     model = model.to(device)
