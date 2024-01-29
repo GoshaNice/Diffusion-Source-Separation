@@ -28,10 +28,10 @@ def get_magnitude(x: torch.Tensor):
 
 
 class ResNetHead(nn.Module):
-    def __init__(self, hidden_channels=[32, 32, 64, 64, 64]):
+    def __init__(self, input_channels = 2, hidden_channels=[32, 32, 64, 64, 64]):
         super().__init__()
         self.blocks = nn.Sequential(
-            nn.Conv2d(2, 32, (3, 3), padding="same"),
+            nn.Conv2d(input_channels, 32, (3, 3), padding="same"),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, 32, (3, 3), padding="same"),
@@ -49,7 +49,9 @@ class ResNetHead(nn.Module):
             nn.Conv2d(64, 2, (3, 3), padding="same"),
         )
 
-    def forward(self, x):
+    def forward(self, x, speaker_embedding=None):
+        if speaker_embedding is not None:
+            x = torch.cat([x, speaker_embedding], axis=1)
         x = self.blocks(x)
         return x
 
@@ -65,14 +67,15 @@ class SeparateAndDiffuse(nn.Module):
         for param in self.GM.parameters():
             param.requires_grad = False
         self.ResnetHeadPhase = ResNetHead()
-        self.ResnetHeadMagnitude = ResNetHead()
+        self.ResnetHeadMagnitude = ResNetHead(input_channels = 3)
 
-    def forward(self, mix, ref, **batch):
+    def forward(self, mix, ref, ref_length, **batch):
         """
         mix: torch.Tensor with shape (B, L) for some reasons B = 1 now
         """
-        reference_audio_len = torch.Tensor([ref.shape[-1]])
-        output = self.backbone(mix_audio = mix, reference_audio = ref, reference_audio_len=reference_audio_len)  # (B, L, 2)
+        output = self.backbone(mix_audio = mix, reference_audio = ref, reference_audio_len=ref_length)
+        speaker_embedding = self.backbone.get_speaker_embedding(reference_audio = ref, reference_audio_len=ref_length) # (B, L, 2)
+
         vd = output["s1"]
         # vd should be resempled to 22.05khz TODO
         spec_vd = self.wav2spec(vd)  # (B, Mels, T)
@@ -114,9 +117,14 @@ class SeparateAndDiffuse(nn.Module):
             ],
             dim=1,
         )  # (B, 2, N_fft, K)
+        
+        #print(speaker_embedding.shape)
+        #print(magnitude.shape)
+        speaker_embedding = speaker_embedding.unsqueeze(1).unsqueeze(-1).expand(-1, -1, -1, magnitude.shape[-1]).repeat(1, 1, 4, 1)
+        #print(speaker_embedding.shape)
 
         D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
-        D1 = self.ResnetHeadMagnitude(magnitude)  # (B, 2, N_fft, K)
+        D1 = self.ResnetHeadMagnitude(magnitude, speaker_embedding)  # (B, 2, N_fft, K)
 
         Q = D1 * torch.exp(D2.mul(-1j))  # (B, 2, N_fft, K)
 

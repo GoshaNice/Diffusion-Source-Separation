@@ -268,3 +268,12 @@ class SpExPlus(nn.Module):
         s2 = self.decoder_middle(y2 * m2)[:, :cutting].squeeze(dim=1)
         s3 = self.decoder_long(y3 * m3)[:, :cutting].squeeze(dim=1)
         return {"s1": s1, "s2": s2, "s3": s3, "speaker_pred": self.speaker_linear(v)}
+    
+    def get_speaker_embedding(self, reference_audio, reference_audio_len, **batch):
+        x1, x2, x3 = self.shared_encoder(reference_audio)
+        x = self.layer_norm_x(torch.cat([x1, x2, x3], 1))
+        x = self.speaker_encoder(x)
+        v = x.sum(-1) / (
+            ((reference_audio_len - self.L1) // (self.L1 // 2) + 1) // 27
+        ).unsqueeze(1)
+        return v

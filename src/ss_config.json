@@ -1,8 +1,8 @@
 {
-  "name": "SeparateAndDiffuse",
+  "name": "TSSeparateAndDiffuse+LocalConditioning",
   "n_gpu": 1,
   "preprocessing": {
-      "sr": 8000
+      "sr": 16000
   },
   "augmentations": {
       "wave": [],
@@ -72,7 +72,13 @@
           "args": {
               "name": "SiSDR"
           }
-      }
+      },
+      {
+        "type": "PESQMetric",
+        "args": {
+            "name": "PESQ"
+        }
+    }
   ],
   "lr_scheduler": {},
   "trainer": {
