@@ -48,10 +48,12 @@ class ResNetHead(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 2, (3, 3), padding="same"),
         )
+        self.skip_connection = nn.Conv2d(2, 2, kernel_size=(1, 1), stride=(1, 1), padding="same")
 
     def forward(self, x):
-        x = self.blocks(x)
-        return x
+        output = self.blocks(x)
+        output = output + self.skip_connection(x)
+        return output
 
 
 class SeparateAndDiffuse(nn.Module):

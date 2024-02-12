@@ -72,11 +72,22 @@
           "args": {
               "name": "SiSDR"
           }
+      },
+      {
+          "type": "PESQMetric",
+          "args": {
+              "name": "PESQ"
+          }
       }
   ],
-  "lr_scheduler": {},
+  "lr_scheduler": {
+    "type": "ExponentialLR",
+    "args": {
+        "gamma": 0.9
+    }
+  },
   "trainer": {
-      "epochs": 10,
+      "epochs": 40,
       "save_dir": "saved/",
       "save_period": 5,
       "verbosity": 2,

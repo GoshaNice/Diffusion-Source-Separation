@@ -137,10 +137,7 @@ class Trainer(BaseTrainer):
                 break
         log = last_train_metrics
         if self.lr_scheduler is not None:
-            try:
-                self.lr_scheduler.step(log["accuracy"])
-            except:
-                self.lr_scheduler.step()
+            self.lr_scheduler.step()
 
         for part, dataloader in self.evaluation_dataloaders.items():
             val_log = self._evaluation_epoch(epoch, part, dataloader)
