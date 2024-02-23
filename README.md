@@ -1,8 +1,8 @@
-# Diffusion Source Separation
+# Diffusion Target Source Separation
 
-#### Implemented by: Pistsov Georgiy 202
+#### Implemented by: Pistsov Georgiy
 
-You can find experiments details [here](https://wandb.ai/goshanice/diffusion_ss_project/overview?workspace=user-goshanice)
+You can find experiments details [here](https://wandb.ai/goshanice/diffusion_tss_project/overview?workspace=user-goshanice)
 
 ## Installation guide
 
@@ -35,17 +35,6 @@ make train
 Config for training you can find in src/config.json
 
 
-## Test model:
-
-### On test-clean:
-
-```shell
-make test_model
-```
-
-The file "output_test_clean.json" with results will be in the root on repository
-
-
 ## Run any other python script:
 
 If you want to run any other custom python script, you can just start it with "poetry run"
@@ -65,16 +54,7 @@ poetry run python test.py -r default_test_model/model_best.pth
 
 ## How to train my model
 
-```shell
-poetry run python test.py -c src/configs/config_SpexPlusChangeMixture.json
-```
-
-Then you will need to resume from latest checkpoint
-
-```shell
-poetry run python test.py -c src/configs/config_SpexPlusChangeMixturePost.json -r PATH/TO/CHECKPOINT
-```
-
+__TODO__
 
 ## Credits
 

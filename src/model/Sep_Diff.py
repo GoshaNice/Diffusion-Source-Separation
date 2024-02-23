@@ -57,7 +57,7 @@ class ResNetHead(nn.Module):
 
 
 class SeparateAndDiffuse(nn.Module):
-    def __init__(self, separator: nn.Module, diffwave: nn.Module):
+    def __init__(self, separator: nn.Module, diffwave: nn.Module, local_condition=True):
         super(SeparateAndDiffuse, self).__init__()
         self.backbone = separator
         for param in self.backbone.parameters():
@@ -67,7 +67,8 @@ class SeparateAndDiffuse(nn.Module):
         for param in self.GM.parameters():
             param.requires_grad = False
         self.ResnetHeadPhase = ResNetHead()
-        self.ResnetHeadMagnitude = ResNetHead(input_channels = 3)
+        self.ResnetHeadMagnitude = ResNetHead(input_channels = 3 if local_condition else 2)
+        self.local_condition = local_condition
 
     def forward(self, mix, ref, ref_length, **batch):
         """
@@ -118,13 +119,14 @@ class SeparateAndDiffuse(nn.Module):
             dim=1,
         )  # (B, 2, N_fft, K)
         
-        #print(speaker_embedding.shape)
-        #print(magnitude.shape)
-        speaker_embedding = speaker_embedding.unsqueeze(1).unsqueeze(-1).expand(-1, -1, -1, magnitude.shape[-1]).repeat(1, 1, 4, 1)
-        #print(speaker_embedding.shape)
+        if self.local_condition:
+            speaker_embedding = speaker_embedding.unsqueeze(1).unsqueeze(-1).expand(-1, -1, -1, magnitude.shape[-1]).repeat(1, 1, 4, 1)
 
         D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
-        D1 = self.ResnetHeadMagnitude(magnitude, speaker_embedding)  # (B, 2, N_fft, K)
+        if self.local_condition:
+            D1 = self.ResnetHeadMagnitude(magnitude, speaker_embedding)  # (B, 2, N_fft, K)
+        else:
+            D1 = self.ResnetHeadMagnitude(magnitude)
 
         Q = D1 * torch.exp(D2.mul(-1j))  # (B, 2, N_fft, K)
 

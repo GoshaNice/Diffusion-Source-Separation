@@ -10,7 +10,9 @@
   },
   "arch": {
       "type": "SeparateAndDiffuse",
-      "args": {}
+      "args": {
+        "local_condition": false
+      }
   },
   "data": {
       "train": {
@@ -74,22 +76,39 @@
           }
       },
       {
-        "type": "PESQMetric",
-        "args": {
-            "name": "PESQ"
-        }
-    }
+          "type": "PESQMetric",
+          "args": {
+              "name": "PESQ"
+          }
+      },
+      {
+          "type": "STOIMetric",
+          "args": {
+              "name": "STOI"
+          }
+      },
+      {
+          "type": "WVMOSMetric",
+          "args": {
+              "name": "WVMOS"
+          }
+      }
   ],
-  "lr_scheduler": {},
+  "lr_scheduler": {
+      "type": "ExponentialLR",
+      "args": {
+          "gamma": 0.9
+      }
+  },
   "trainer": {
-      "epochs": 10,
+      "epochs": 50,
       "save_dir": "saved/",
       "save_period": 5,
       "verbosity": 2,
       "monitor": "max val_SiSDR",
       "early_stop": 100,
       "visualize": "wandb",
-      "wandb_project": "diffusion_ss_project",
+      "wandb_project": "diffusion_tss_project",
       "len_epoch": 100,
       "grad_norm_clip": 10
   }
