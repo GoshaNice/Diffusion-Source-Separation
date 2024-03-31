@@ -1,5 +1,5 @@
 {
-  "name": "TSSeparateAndDiffuse+LocalConditioning",
+  "name": "TSSeparateAndDiffuse+NoLocalConditioning+FinetuneGM",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 16000
@@ -11,7 +11,9 @@
   "arch": {
       "type": "SeparateAndDiffuse",
       "args": {
-        "local_condition": false
+        "local_condition": false,
+        "finetune_backbone": false,
+        "finetune_gm": true
       }
   },
   "data": {
