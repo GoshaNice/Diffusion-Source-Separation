@@ -28,7 +28,7 @@ def get_magnitude(x: torch.Tensor):
 
 
 class ResNetHead(nn.Module):
-    def __init__(self, input_channels = 2, hidden_channels=[32, 32, 64, 64, 64]):
+    def __init__(self, input_channels=2, hidden_channels=[32, 32, 64, 64, 64]):
         super().__init__()
         self.blocks = nn.Sequential(
             nn.Conv2d(input_channels, 32, (3, 3), padding="same"),
@@ -57,25 +57,38 @@ class ResNetHead(nn.Module):
 
 
 class SeparateAndDiffuse(nn.Module):
-    def __init__(self, separator: nn.Module, diffwave: nn.Module, local_condition=True):
+    def __init__(
+        self,
+        separator: nn.Module,
+        diffwave: nn.Module,
+        local_condition=True,
+        finetune_backbone=False,
+        finetune_gm=False,
+    ):
         super(SeparateAndDiffuse, self).__init__()
         self.backbone = separator
         for param in self.backbone.parameters():
-            param.requires_grad = False
+            param.requires_grad = finetune_backbone
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
         for param in self.GM.parameters():
-            param.requires_grad = False
+            param.requires_grad = finetune_gm
         self.ResnetHeadPhase = ResNetHead()
-        self.ResnetHeadMagnitude = ResNetHead(input_channels = 3 if local_condition else 2)
+        self.ResnetHeadMagnitude = ResNetHead(
+            input_channels=3 if local_condition else 2
+        )
         self.local_condition = local_condition
 
     def forward(self, mix, ref, ref_length, **batch):
         """
         mix: torch.Tensor with shape (B, L) for some reasons B = 1 now
         """
-        output = self.backbone(mix_audio = mix, reference_audio = ref, reference_audio_len=ref_length)
-        speaker_embedding = self.backbone.get_speaker_embedding(reference_audio = ref, reference_audio_len=ref_length) # (B, L, 2)
+        output = self.backbone(
+            mix_audio=mix, reference_audio=ref, reference_audio_len=ref_length
+        )
+        speaker_embedding = self.backbone.get_speaker_embedding(
+            reference_audio=ref, reference_audio_len=ref_length
+        )  # (B, L, 2)
 
         vd = output["s1"]
         # vd should be resempled to 22.05khz TODO
@@ -118,13 +131,20 @@ class SeparateAndDiffuse(nn.Module):
             ],
             dim=1,
         )  # (B, 2, N_fft, K)
-        
+
         if self.local_condition:
-            speaker_embedding = speaker_embedding.unsqueeze(1).unsqueeze(-1).expand(-1, -1, -1, magnitude.shape[-1]).repeat(1, 1, 4, 1)
+            speaker_embedding = (
+                speaker_embedding.unsqueeze(1)
+                .unsqueeze(-1)
+                .expand(-1, -1, -1, magnitude.shape[-1])
+                .repeat(1, 1, 4, 1)
+            )
 
         D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
         if self.local_condition:
-            D1 = self.ResnetHeadMagnitude(magnitude, speaker_embedding)  # (B, 2, N_fft, K)
+            D1 = self.ResnetHeadMagnitude(
+                magnitude, speaker_embedding
+            )  # (B, 2, N_fft, K)
         else:
             D1 = self.ResnetHeadMagnitude(magnitude)
 

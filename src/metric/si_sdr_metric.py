@@ -32,12 +32,7 @@ class SiSDRMetric(BaseMetric):
         super().__init__(*args, **kwargs)
         self.sisdr = ScaleInvariantSignalDistortionRatio(zero_mean)
 
-    def __call__(
-        self,
-        prediction: Tensor,
-        target: Tensor,
-        **kwargs
-    ):
+    def __call__(self, prediction: Tensor, target: Tensor, **kwargs):
         self.sisdr = self.sisdr.to(prediction.device)
         prediction, target = self.pad_to_target(prediction, target)
         sisdr = self.sisdr(prediction, target)

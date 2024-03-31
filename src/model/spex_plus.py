@@ -224,7 +224,7 @@ class SpExPlus(nn.Module):
         self.mask3 = nn.Sequential(
             nn.Conv1d(num_filters1x1, num_filtersSE, 1), nn.ReLU()
         )
-        ### Speech Decoder
+        # Speech Decoder
         self.decoder_short = nn.ConvTranspose1d(
             num_filtersSE, 1, kernel_size=L1, stride=L1 // 2
         )
@@ -235,7 +235,7 @@ class SpExPlus(nn.Module):
             num_filtersSE, 1, kernel_size=L3, stride=L1 // 2
         )
         self.num_speakers = num_speakers
-        ### Speaker Encoder
+        # Speaker Encoder
         self.layer_norm_x = ChannelwiseLayerNorm(3 * num_filtersSE)
         self.speaker_encoder = nn.Sequential(
             nn.Conv1d(3 * num_filtersSE, num_filters1x1, 1),
@@ -268,7 +268,7 @@ class SpExPlus(nn.Module):
         s2 = self.decoder_middle(y2 * m2)[:, :cutting].squeeze(dim=1)
         s3 = self.decoder_long(y3 * m3)[:, :cutting].squeeze(dim=1)
         return {"s1": s1, "s2": s2, "s3": s3, "speaker_pred": self.speaker_linear(v)}
-    
+
     def get_speaker_embedding(self, reference_audio, reference_audio_len, **batch):
         x1, x2, x3 = self.shared_encoder(reference_audio)
         x = self.layer_norm_x(torch.cat([x1, x2, x3], 1))

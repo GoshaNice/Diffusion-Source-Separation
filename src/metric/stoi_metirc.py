@@ -9,12 +9,7 @@ class STOIMetric(BaseMetric):
         super().__init__(*args, **kwargs)
         self.stoi = ShortTimeObjectiveIntelligibility(fs, extended)
 
-    def __call__(
-        self,
-        prediction: Tensor,
-        target: Tensor,
-        **kwargs
-    ):
+    def __call__(self, prediction: Tensor, target: Tensor, **kwargs):
         # prediction = prediction.squeeze(1)
         prediction, target = self.pad_to_target(prediction, target)
         stoi = self.stoi(prediction, target)
