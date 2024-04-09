@@ -102,6 +102,7 @@ class Trainer(BaseTrainer):
                     batch,
                     is_train=True,
                     metrics=self.train_metrics,
+                    make_step=True,
                 )
             except RuntimeError as e:
                 if "out of memory" in str(e) and self.skip_oom:
@@ -145,17 +146,21 @@ class Trainer(BaseTrainer):
 
         return log
 
-    def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
+    def process_batch(
+        self, batch, is_train: bool, metrics: MetricTracker, make_step: bool = True
+    ):
         batch = self.move_batch_to_device(batch, self.device)
         if is_train:
             self.optimizer.zero_grad()
-        prediction = self.model(**batch)
+        prediction_raw, prediction = self.model(**batch)
         batch["prediction"] = prediction
+        batch["prediction_raw"] = prediction_raw
         batch["loss"] = self.criterion(**batch)
         if is_train:
             batch["loss"].backward()
             self._clip_grad_norm()
-            self.optimizer.step()
+            if make_step:
+                self.optimizer.step()
 
         metrics.update("loss", batch["loss"].item())
         for met in self.metrics:

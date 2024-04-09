@@ -30,7 +30,7 @@ def get_magnitude(x: torch.Tensor):
 class ResNetHead(nn.Module):
     def __init__(self, input_channels=2, hidden_channels=[32, 32, 64, 64, 64]):
         super().__init__()
-        self.blocks = nn.Sequential(
+        self.blocks_seq = nn.Sequential(
             nn.Conv2d(input_channels, 32, (3, 3), padding="same"),
             nn.BatchNorm2d(32),
             nn.ReLU(),
@@ -49,11 +49,43 @@ class ResNetHead(nn.Module):
             nn.Conv2d(64, 2, (3, 3), padding="same"),
         )
 
+        self.blocks_list = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Conv2d(input_channels, 32, (3, 3), padding="same"),
+                    nn.BatchNorm2d(32),
+                    nn.ReLU(),
+                ),
+                nn.Sequential(
+                    nn.Conv2d(33, 32, (3, 3), padding="same"),
+                    nn.BatchNorm2d(32),
+                    nn.ReLU(),
+                ),
+                nn.Sequential(
+                    nn.Conv2d(33, 64, (3, 3), padding="same"),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU(),
+                ),
+                nn.Sequential(
+                    nn.Conv2d(65, 64, (3, 3), padding="same"),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU(),
+                    nn.Conv2d(64, 64, (3, 3), padding="same"),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU(),
+                ),
+                nn.Conv2d(65, 2, (3, 3), padding="same"),
+            ]
+        )
+
     def forward(self, x, speaker_embedding=None):
         if speaker_embedding is not None:
-            x = torch.cat([x, speaker_embedding], axis=1)
-        x = self.blocks(x)
-        return x
+            for block in self.blocks_list:
+                x = torch.cat([x, speaker_embedding], axis=1)
+                x = block(x)
+            return x
+        else:
+            return self.blocks_seq(x)
 
 
 class SeparateAndDiffuse(nn.Module):
@@ -61,9 +93,10 @@ class SeparateAndDiffuse(nn.Module):
         self,
         separator: nn.Module,
         diffwave: nn.Module,
-        local_condition=True,
+        global_condition=True,
         finetune_backbone=False,
         finetune_gm=False,
+        num_heads=1,
     ):
         super(SeparateAndDiffuse, self).__init__()
         self.backbone = separator
@@ -75,9 +108,53 @@ class SeparateAndDiffuse(nn.Module):
             param.requires_grad = finetune_gm
         self.ResnetHeadPhase = ResNetHead()
         self.ResnetHeadMagnitude = ResNetHead(
-            input_channels=3 if local_condition else 2
+            input_channels=3 if global_condition else 2
         )
-        self.local_condition = local_condition
+        self.global_condition = global_condition
+        self.self_attn_alpha = nn.MultiheadAttention(
+            self.wav2spec.config.n_fft, num_heads, batch_first=True
+        )
+        self.self_attn_beta = nn.MultiheadAttention(
+            self.wav2spec.config.n_fft, num_heads, batch_first=True
+        )
+
+        self.resblock_alpha = nn.Sequential(
+            nn.Conv2d(2, 32, (5, 5), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, (7, 7), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (7, 7), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, (5, 5), padding="same"),
+        )
+
+        self.resblock_beta = nn.Sequential(
+            nn.Conv2d(2, 32, (5, 5), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, (7, 7), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (7, 7), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, (5, 5), padding="same"),
+        )
 
     def forward(self, mix, ref, ref_length, **batch):
         """
@@ -132,7 +209,7 @@ class SeparateAndDiffuse(nn.Module):
             dim=1,
         )  # (B, 2, N_fft, K)
 
-        if self.local_condition:
+        if self.global_condition:
             speaker_embedding = (
                 speaker_embedding.unsqueeze(1)
                 .unsqueeze(-1)
@@ -141,7 +218,7 @@ class SeparateAndDiffuse(nn.Module):
             )
 
         D2 = self.ResnetHeadPhase(phase)  # (B, 2, N_fft, K)
-        if self.local_condition:
+        if self.global_condition:
             D1 = self.ResnetHeadMagnitude(
                 magnitude, speaker_embedding
             )  # (B, 2, N_fft, K)
@@ -154,6 +231,25 @@ class SeparateAndDiffuse(nn.Module):
         beta = Q[:, 1:2]  # (B, 1, N_fft, K)
 
         V_hat = (alpha * Vd_hat + beta * Vg_hat).squeeze(1)  # (B, N_fft, K)
+        prediction_raw = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
 
-        prediction = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
-        return prediction
+        alpha_new = alpha.squeeze(1).transpose(1, 2).type(torch.float32)
+        beta_new = beta.squeeze(1).transpose(1, 2).type(torch.float32)
+        alpha_new, _ = self.self_attn_alpha(alpha_new, alpha_new, alpha_new)
+        beta_new, _ = self.self_attn_beta(beta_new, beta_new, beta_new)
+
+        alpha_new = alpha_new.transpose(1, 2).unsqueeze(1)
+        beta_new = beta_new.transpose(1, 2).unsqueeze(1)
+
+        alpha_new = self.resblock_alpha(
+            torch.cat([alpha_new, alpha.type(torch.float32)], dim=1)
+        )
+        beta_new = self.resblock_beta(
+            torch.cat([beta_new, beta.type(torch.float32)], dim=1)
+        )
+
+        V_hat = (alpha_new * Vd_hat + beta_new * Vg_hat).squeeze(1)  # (B, N_fft, K)
+
+        prediction_last = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
+
+        return prediction_raw, prediction_last

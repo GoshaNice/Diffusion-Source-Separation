@@ -16,6 +16,8 @@ from torchmetrics.audio import PerceptualEvaluationSpeechQuality
 import pyloudnorm as pyln
 import torch.nn.functional as F
 import numpy as np
+from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
+from src.model.spex_plus import SpExPlus
 
 def pad_to_target(prediction, target):
         if prediction.shape[-1] > target.shape[-1]:
@@ -49,7 +51,14 @@ def main(config, out_file):
     dataloaders = get_dataloaders(config)
 
     # build model architecture
-    model = config.init_obj(config["arch"], module_model)
+    checkpoint = torch.load("pretrained_models/spexplus/checkpoint-epoch50_spex.pth", map_location=device)
+    separator = SpExPlus().to(device)
+    separator.load_state_dict(checkpoint["state_dict"])
+    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    #sepformer.device = device
+    diffwave.device = device
+    model = config.init_obj(config["arch"], module_model, separator, diffwave)
+    #model = config.init_obj(config["arch"], module_model)
     logger.info(model)
 
     logger.info("Loading checkpoint: {} ...".format(config.resume))
@@ -71,10 +80,10 @@ def main(config, out_file):
 
 
     with torch.no_grad():
-        for batch_num, batch in enumerate(tqdm(dataloaders["test"])):
+        for batch_num, batch in enumerate(tqdm(dataloaders["test-clean"])):
             batch = Trainer.move_batch_to_device(batch, device)
-            s1, s2, s3, probs = model(**batch)
-            batch["prediction"] = s1
+            prediction = model(**batch)
+            batch["prediction"] = prediction
 
             for i in range(len(batch["prediction"])):
                 prediction = batch["prediction"][i]
@@ -205,8 +214,8 @@ if __name__ == "__main__":
             }
         }
 
-    assert config.config.get("data", {}).get("test", None) is not None
-    config["data"]["test"]["batch_size"] = args.batch_size
-    config["data"]["test"]["n_jobs"] = args.jobs
+    assert config.config.get("data", {}).get("test-clean", None) is not None
+    config["data"]["test-clean"]["batch_size"] = args.batch_size
+    config["data"]["test-clean"]["n_jobs"] = args.jobs
 
     main(config, args.output)

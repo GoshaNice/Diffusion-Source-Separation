@@ -36,8 +36,11 @@ class SepDiffLoss(nn.Module):
             )
         return prediction, target
 
-    def forward(self, prediction, target, **batch) -> Tensor:
+    def forward(self, prediction, prediction_raw, target, **batch) -> Tensor:
         prediction, target = self.pad_to_target(prediction, target)
-        final_loss = -calc_si_sdr(prediction, target)
+        prediction_raw, target = self.pad_to_target(prediction_raw, target)
+
+        final_loss = -calc_si_sdr(prediction, target) * 0.7
+        final_loss -= calc_si_sdr(prediction_raw, target) * 0.3
 
         return final_loss

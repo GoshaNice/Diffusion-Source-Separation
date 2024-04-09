@@ -1,5 +1,5 @@
 {
-  "name": "TSSeparateAndDiffuse+NoLocalConditioning+FinetuneGM",
+  "name": "TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+SelfAttention",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 16000
@@ -11,9 +11,10 @@
   "arch": {
       "type": "SeparateAndDiffuse",
       "args": {
-        "local_condition": false,
-        "finetune_backbone": false,
-        "finetune_gm": true
+        "global_condition": true,
+        "finetune_backbone": true,
+        "finetune_gm": true,
+        "num_heads": 4
       }
   },
   "data": {
@@ -111,7 +112,7 @@
       "early_stop": 100,
       "visualize": "wandb",
       "wandb_project": "diffusion_tss_project",
-      "len_epoch": 100,
+      "len_epoch": 1000,
       "grad_norm_clip": 10
   }
 }
