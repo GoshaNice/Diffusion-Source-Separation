@@ -12,7 +12,7 @@
       "type": "SeparateAndDiffuse",
       "args": {
         "conditioning": "global",
-        "finetune_backbone": true,
+        "finetune_backbone": false,
         "finetune_gm": true,
         "num_heads": 4,
         "use_attention": true,

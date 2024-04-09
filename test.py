@@ -82,7 +82,7 @@ def main(config, out_file):
     with torch.no_grad():
         for batch_num, batch in enumerate(tqdm(dataloaders["test-clean"])):
             batch = Trainer.move_batch_to_device(batch, device)
-            prediction = model(**batch)
+            prediction_raw, prediction = model(**batch)
             batch["prediction"] = prediction
 
             for i in range(len(batch["prediction"])):

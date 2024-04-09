@@ -30,3 +30,24 @@ test_model:
 
 train:
 	poetry run python train.py -c src/ss_config.json
+
+experiment_1:
+	poetry run python train.py -c src/configs/exp1.json
+
+experiment_2:
+	poetry run python train.py -c src/configs/exp2.json
+
+experiment_3:
+	poetry run python train.py -c src/configs/exp3.json
+
+experiment_4:
+	poetry run python train.py -c src/configs/exp4.json
+
+experiment_5:
+	poetry run python train.py -c src/configs/exp5.json
+
+experiment_6:
+	poetry run python train.py -c src/configs/exp6.json
+
+experiment_7:
+	poetry run python train.py -c src/configs/exp7.json

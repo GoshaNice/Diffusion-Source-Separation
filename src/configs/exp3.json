@@ -1,5 +1,5 @@
 {
-  "name": "TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+SelfAttention+PostCNN",
+  "name": "TSSeparateAndDiffuse+NoConditioning+FinetuneAll+SelfAttention+PostCNN",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 16000
@@ -11,7 +11,7 @@
   "arch": {
       "type": "SeparateAndDiffuse",
       "args": {
-        "conditioning": "global",
+        "conditioning": "no",
         "finetune_backbone": true,
         "finetune_gm": true,
         "num_heads": 4,

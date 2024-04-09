@@ -13,7 +13,7 @@
       "args": {
         "conditioning": "global",
         "finetune_backbone": true,
-        "finetune_gm": true,
+        "finetune_gm": false,
         "num_heads": 4,
         "use_attention": true,
         "use_post_cnn": true
