@@ -19,17 +19,23 @@ format:
 	#format code
 	poetry run black $(CODE)
 
-download_checkpoint:
-	wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=FILEID' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1yhJX9IyXZ1L1SbFbhW0gwpipghsJwI9w" -O pretrained_models/spexplus/model_best.pth && rm -rf /tmp/cookies.txt
-
 download_checkpoint_spexplus:
-	wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=FILEID' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1x_k9Iv5NHHSrjOCHkklbiRQ-VjUGI89D" -O pretrained_models/spexplus/checkpoint-epoch50_spex.pth && rm -rf /tmp/cookies.txt
+	mkdir pretrained_models/spextest
+	gdown https://drive.google.com/uc\?id\=10MPcYDL8csaZX4R87WxGsDYV7zQyjOfU -O pretrained_models/spextest/checkpoint-epoch50_spex.pth
 
 test_model:
 	poetry run python test.py -r default_test_model/model_best.pth -o output_test_clean.json -b 1
 
 train:
 	poetry run python train.py -c src/ss_config.json
+
+make setup:
+	python3.10 -m pip install poetry
+	python3.10 -m pip install gdown
+	poetry install
+	mkdir pretrained_models pretrained_models/spexplus
+	gdown https://drive.google.com/uc?id=10MPcYDL8csaZX4R87WxGsDYV7zQyjOfU -O pretrained_models/spexplus/checkpoint-epoch50_spex.pth
+	export WANDB_API_KEY=d7a59d1f2d033191490803ece03644b895ff4bd2
 
 experiment_1:
 	poetry run python train.py -c src/configs/exp1.json
