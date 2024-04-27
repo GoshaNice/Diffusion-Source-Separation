@@ -97,11 +97,14 @@ class Trainer(BaseTrainer):
         for batch_idx, batch in enumerate(
             tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
         ):
+            if batch_idx % 16 == 0:
+                self.optimizer.zero_grad()
             try:
                 batch = self.process_batch(
                     batch,
                     is_train=True,
                     metrics=self.train_metrics,
+                    make_step=(batch_idx % 16 == 15),
                 )
             except RuntimeError as e:
                 if "out of memory" in str(e) and self.skip_oom:
@@ -145,10 +148,8 @@ class Trainer(BaseTrainer):
 
         return log
 
-    def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
+    def process_batch(self, batch, is_train: bool, metrics: MetricTracker, make_step: bool = True):
         batch = self.move_batch_to_device(batch, self.device)
-        if is_train:
-            self.optimizer.zero_grad()
         prediction = self.model(**batch)
         batch["prediction"] = prediction
         if not is_train and (
@@ -163,9 +164,10 @@ class Trainer(BaseTrainer):
             batch["loss"],
         ) = self.criterion(**batch)
         if is_train:
-            batch["loss"].backward()
-            self._clip_grad_norm()
-            self.optimizer.step()
+            (batch["loss"] / 16).backward()
+            if make_step:
+                self._clip_grad_norm()
+                self.optimizer.step()
 
         metrics.update("loss", batch["loss"].item())
         for met in self.metrics:

@@ -57,17 +57,63 @@ class ResNetHead(nn.Module):
 
 
 class SeparateAndDiffuse(nn.Module):
-    def __init__(self, separator: nn.Module, diffwave: nn.Module):
+    def __init__(self, separator: nn.Module, diffwave: nn.Module, num_heads: int = 4):
         super(SeparateAndDiffuse, self).__init__()
         self.backbone = separator
         for param in self.backbone.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
+        self.backbone.train()
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
         for param in self.GM.parameters():
             param.requires_grad = False
         self.ResnetHeadPhase = ResNetHead()
         self.ResnetHeadMagnitude = ResNetHead()
+        
+        self.self_attn_alpha = nn.MultiheadAttention(
+            self.wav2spec.config.n_fft, num_heads, batch_first=True
+        )
+        self.self_attn_beta = nn.MultiheadAttention(
+            self.wav2spec.config.n_fft, num_heads, batch_first=True
+        )
+        
+        self.resblock_alpha = nn.Sequential(
+            nn.Conv2d(2, 32, (5, 5), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, (7, 7), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (7, 7), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, (5, 5), padding="same"),
+        )
+
+        self.resblock_beta = nn.Sequential(
+            nn.Conv2d(2, 32, (5, 5), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, (7, 7), padding="same"),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (5, 5), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (7, 7), padding="same"),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, (5, 5), padding="same"),
+        )
 
     def forward(self, mix, **batch):
         """
@@ -131,6 +177,27 @@ class SeparateAndDiffuse(nn.Module):
 
             V_hat = (alpha * Vd_hat + beta * Vg_hat).squeeze(1)  # (B, N_fft, K)
 
-            prediction = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
-            predictions.append(prediction)
+            prediction_raw = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
+            
+            alpha_new = alpha.squeeze(1).transpose(1, 2).type(torch.float32)
+            beta_new = beta.squeeze(1).transpose(1, 2).type(torch.float32)
+            alpha_new, _ = self.self_attn_alpha(alpha_new, alpha_new, alpha_new)
+            beta_new, _ = self.self_attn_beta(beta_new, beta_new, beta_new)
+            
+            alpha_new = alpha_new.transpose(1, 2).unsqueeze(1)
+            beta_new = beta_new.transpose(1, 2).unsqueeze(1)
+            
+            alpha_new = self.resblock_alpha(
+                torch.cat([alpha_new, alpha.type(torch.float32)], dim=1)
+            )
+            beta_new = self.resblock_beta(
+                torch.cat([beta_new, beta.type(torch.float32)], dim=1)
+            )
+            
+            V_hat = (alpha_new * Vd_hat + beta_new * Vg_hat).squeeze(1)  # (B, N_fft, K)
+
+            prediction_last = torch.istft(V_hat, n_fft=self.wav2spec.config.n_fft)
+            
+            predictions.append(prediction_last)
+
         return predictions
