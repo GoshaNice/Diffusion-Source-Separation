@@ -13,10 +13,8 @@ Conditioning-part:
 3. Global Conditioning &larr; __main__
 
 Freezing:
-1. No freezing &larr; __main__
-2. Freeze backbone
-3. Freeze diffusion model
-4. Freeze all
+1. Freeze diffusion model &larr; __main__
+2. Freeze all
 
 During Ablation study we subsequently in each part conduct experiments on how different option influence the final metrics.
 
@@ -27,7 +25,5 @@ During Ablation study we subsequently in each part conduct experiments on how di
 | 2          | Attention    | Only self-attention    |
 | 3          | Conditioning | No conditioning        |
 | 4          | Conditioning | Local Conditioning     |
-| 5          | Freezing     | Freeze backbone        |
-| 6          | Freezing     | Freeze diffusion model |
-| 7          | Freezing     | Freeze all             |
+| 5          | Freezing     | Freeze all             |
 

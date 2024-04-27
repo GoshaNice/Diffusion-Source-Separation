@@ -12,6 +12,8 @@ class PESQMetric(BaseMetric):
     def __call__(self, prediction: Tensor, target: Tensor, **kwargs):
         # prediction = prediction.squeeze(1)
         prediction, target = self.pad_to_target(prediction, target)
-        pesq = self.pesq(prediction, target)
-
-        return pesq.mean()
+        try:
+            pesq = self.pesq(prediction, target)
+            return pesq.mean()
+        except:
+            return 1

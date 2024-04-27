@@ -97,12 +97,14 @@ class Trainer(BaseTrainer):
         for batch_idx, batch in enumerate(
             tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
         ):
+            if batch_idx % 4 == 0:
+                self.optimizer.zero_grad()
             try:
                 batch = self.process_batch(
                     batch,
                     is_train=True,
                     metrics=self.train_metrics,
-                    make_step=True,
+                    make_step=(batch_idx % 4 == 3),
                 )
             except RuntimeError as e:
                 if "out of memory" in str(e) and self.skip_oom:
@@ -114,7 +116,10 @@ class Trainer(BaseTrainer):
                     continue
                 else:
                     raise e
-            self.train_metrics.update("grad norm", self.get_grad_norm())
+            try:
+                self.train_metrics.update("grad norm", self.get_grad_norm())
+            except:
+                self.logger.debug("Something wrong with logging grad norm")
             if batch_idx % self.log_step == 0:
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.logger.debug(
@@ -150,16 +155,15 @@ class Trainer(BaseTrainer):
         self, batch, is_train: bool, metrics: MetricTracker, make_step: bool = True
     ):
         batch = self.move_batch_to_device(batch, self.device)
-        if is_train:
-            self.optimizer.zero_grad()
         prediction_raw, prediction = self.model(**batch)
         batch["prediction"] = prediction
         batch["prediction_raw"] = prediction_raw
-        batch["loss"] = self.criterion(**batch)
+        loss = self.criterion(**batch)
+        batch["loss"] = loss
         if is_train:
-            batch["loss"].backward()
-            self._clip_grad_norm()
+            (loss / 4).backward()
             if make_step:
+                self._clip_grad_norm()
                 self.optimizer.step()
 
         metrics.update("loss", batch["loss"].item())

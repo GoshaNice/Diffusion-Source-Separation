@@ -37,6 +37,9 @@ make setup:
 	gdown https://drive.google.com/uc?id=10MPcYDL8csaZX4R87WxGsDYV7zQyjOfU -O pretrained_models/spexplus/checkpoint-epoch50_spex.pth
 	export WANDB_API_KEY=d7a59d1f2d033191490803ece03644b895ff4bd2
 
+experiment_main:
+	poetry run python train.py -c src/configs/main.json 
+
 experiment_1:
 	poetry run python train.py -c src/configs/exp1.json
 
@@ -52,8 +55,29 @@ experiment_4:
 experiment_5:
 	poetry run python train.py -c src/configs/exp5.json
 
-experiment_6:
-	poetry run python train.py -c src/configs/exp6.json
+experiment_baseline:
+	poetry run python train.py -c src/configs/baseline.json
 
-experiment_7:
-	poetry run python train.py -c src/configs/exp7.json
+validate_baseline:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse/0418_231156/checkpoint-epoch50.pth -o baseline_output.json
+
+validate_main:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+SelfAttention+PostCNN/0418_232323/checkpoint-epoch50.pth -o main_output.json
+
+validate_experiment_1:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+NoAttention/0418_231702/checkpoint-epoch50.pth -o exp1_output.json
+
+validate_experiment_2:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+Attention+NoPostCNN/0418_231847/model_best.pth -o exp2_output.json
+
+validate_experiment_3:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+NoConditioning+FinetuneAll+SelfAttention+PostCNN/0418_231852/checkpoint-epoch50.pth -o exp3_output.json
+
+validate_experiment_4:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+LocalConditioning+FinetuneAll+SelfAttention+PostCNN/0418_232001/checkpoint-epoch50.pth -o exp4_output.json
+
+validate_experiment_5:
+	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+NoFinetune+SelfAttention+PostCNN/0418_232035/checkpoint-epoch50.pth -o exp5_output.json
+
+validate_spex:
+	poetry run python test_spex.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+NoFinetune+SelfAttention+PostCNN/0418_232035/checkpoint-epoch50.pth -o spex_output.json

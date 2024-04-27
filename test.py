@@ -13,6 +13,8 @@ from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
 from torchmetrics.audio import ScaleInvariantSignalDistortionRatio
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality
+from torchmetrics.audio.stoi import ShortTimeObjectiveIntelligibility
+from wvmos import get_wvmos
 import pyloudnorm as pyln
 import torch.nn.functional as F
 import numpy as np
@@ -74,9 +76,14 @@ def main(config, out_file):
 
     calc_sisdr = ScaleInvariantSignalDistortionRatio()
     calc_pesq = PerceptualEvaluationSpeechQuality(16000, "wb")
+    calc_stoi = ShortTimeObjectiveIntelligibility(16000, False)
+    calc_wvmos = get_wvmos(cuda=torch.cuda.is_available())
+    calc_wvmos.eval()
     results = []
     si_sdrs = []
     pesqs = []
+    stois = []
+    wvmoses = []
 
 
     with torch.no_grad():
@@ -86,9 +93,9 @@ def main(config, out_file):
             batch["prediction"] = prediction
 
             for i in range(len(batch["prediction"])):
-                prediction = batch["prediction"][i]
+                prediction_fresh = batch["prediction"][i]
                 target = batch["target"][i].unsqueeze(0)
-                prediction, target = pad_to_target(prediction, target)
+                prediction, target = pad_to_target(prediction_fresh, target)
                 prediction = prediction.squeeze(0).detach().cpu().numpy()
                 target = target.squeeze(0).detach().cpu().numpy()
 
@@ -101,20 +108,29 @@ def main(config, out_file):
 
                 si_sdr = calc_sisdr(torch.from_numpy(prediction), torch.from_numpy(target))
                 pesq = calc_pesq(torch.from_numpy(prediction), torch.from_numpy(target))
+                stoi = calc_stoi(torch.from_numpy(prediction), torch.from_numpy(target))
+                with torch.no_grad():
+                    wvmos = calc_wvmos(prediction_fresh.unsqueeze(0))
 
                 si_sdrs.append(si_sdr.item())
                 pesqs.append(pesq.item())
+                stois.append(stoi.item())
+                wvmoses.append(wvmos.item())
 
                 results.append(
                     {
                         "SI-SDR": si_sdr.item(),
-                        "PESQ": pesq.item()
+                        "PESQ": pesq.item(),
+                        "STOI": stoi.item(),
+                        "WVMOS": wvmos.item(),
                     }
                 )
 
     print("Final_metrics")
     print("SI-SDR: ", sum(si_sdrs) / len(si_sdrs))
     print("PESQ: ", sum(pesqs) / len(pesqs))
+    print("STOI: ", sum(stois) / len(stois))
+    print("WVMOS: ", sum(wvmoses) / len(wvmoses))
 
     with Path(out_file).open("w") as f:
         json.dump(results, f, indent=2)
@@ -160,7 +176,7 @@ if __name__ == "__main__":
     args.add_argument(
         "-b",
         "--batch-size",
-        default=20,
+        default=1,
         type=int,
         help="Test dataset batch size",
     )
@@ -217,5 +233,6 @@ if __name__ == "__main__":
     assert config.config.get("data", {}).get("test-clean", None) is not None
     config["data"]["test-clean"]["batch_size"] = args.batch_size
     config["data"]["test-clean"]["n_jobs"] = args.jobs
+    config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 1000
 
     main(config, args.output)

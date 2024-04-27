@@ -1,5 +1,5 @@
 {
-  "name": "TSSeparateAndDiffuse+GlobalConditioning+FinetuneAll+SelfAttention+PostCNN",
+  "name": "TSSeparateAndDiffuse+GlobalConditioning+NoFinetune+SelfAttention+PostCNN",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 16000
@@ -13,7 +13,7 @@
       "args": {
         "conditioning": "global",
         "finetune_backbone": false,
-        "finetune_gm": true,
+        "finetune_gm": false,
         "num_heads": 4,
         "use_attention": true,
         "use_post_cnn": true
@@ -91,12 +91,6 @@
           "args": {
               "name": "STOI"
           }
-      },
-      {
-          "type": "WVMOSMetric",
-          "args": {
-              "name": "WVMOS"
-          }
       }
   ],
   "lr_scheduler": {
@@ -108,13 +102,13 @@
   "trainer": {
       "epochs": 50,
       "save_dir": "saved/",
-      "save_period": 5,
+      "save_period": 10,
       "verbosity": 2,
       "monitor": "max val_SiSDR",
       "early_stop": 100,
       "visualize": "wandb",
       "wandb_project": "diffusion_tss_project",
-      "len_epoch": 1000,
+      "len_epoch": 1600,
       "grad_norm_clip": 10
   }
 }

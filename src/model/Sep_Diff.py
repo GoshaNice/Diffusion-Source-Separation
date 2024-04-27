@@ -114,10 +114,9 @@ class SeparateAndDiffuse(nn.Module):
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
         for param in self.GM.parameters():
-            param.requires_grad = finetune_gm
+            param.requires_grad = False
 
-        if not finetune_gm:
-            self.GM.eval()
+        self.GM.eval()
 
         assert conditioning in [
             "no",
