@@ -55,6 +55,9 @@ experiment_4:
 experiment_5:
 	poetry run python train.py -c src/configs/exp5.json
 
+experiment_last_hope:
+	poetry run python train.py -c src/configs/last_hope.json
+
 experiment_baseline:
 	poetry run python train.py -c src/configs/baseline.json
 
