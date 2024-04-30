@@ -16,7 +16,8 @@ from src.trainer import Trainer
 from src.utils import prepare_device
 from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
-from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
+from speechbrain.inference.vocoders import DiffWaveVocoder, HIFIGAN
+from speechbrain.inference.separation import SepformerSeparation
 from src.model.spex_plus import SpExPlus
 
 
@@ -41,7 +42,7 @@ def main(config):
     checkpoint = torch.load("pretrained_models/spexplus/checkpoint-epoch50_spex.pth", map_location=device)
     separator = SpExPlus().to(device)
     separator.load_state_dict(checkpoint["state_dict"])
-    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    diffwave = HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-ljspeech", savedir="pretrained_models/tts-hifigan-ljspeech")
     #sepformer.device = device
     diffwave.device = device
     model = config.init_obj(config["arch"], module_arch, separator, diffwave)

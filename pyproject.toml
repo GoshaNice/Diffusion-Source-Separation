@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "diffusion_ss_project"
+name = "diffusion_tss_project"
 version = "0.1.0"
 description = "TSS"
 authors = ["Gosha <gkpistsov@edu.hse.ru>"]
@@ -21,7 +21,7 @@ tqdm = "^4.66.1"
 tensorboard = "^2.14.1"
 matplotlib = "^3.8.0"
 pandas = ">=1.0.0"
-speechbrain = "^0.5.15"
+speechbrain = "1.0.0"
 datasets = "^2.14.5"
 wandb = "^0.15.12"
 pillow = "^10.0.1"

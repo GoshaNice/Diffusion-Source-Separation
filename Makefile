@@ -55,6 +55,12 @@ experiment_4:
 experiment_5:
 	poetry run python train.py -c src/configs/exp5.json
 
+experiment_6:
+	poetry run python train.py -c src/configs/exp6.json
+
+experiment_7:
+	poetry run python train.py -c src/configs/exp7.json
+
 experiment_baseline:
 	poetry run python train.py -c src/configs/baseline.json
 

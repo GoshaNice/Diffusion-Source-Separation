@@ -110,13 +110,18 @@ class SeparateAndDiffuse(nn.Module):
 
         if not finetune_backbone:
             self.backbone.eval()
+        else:
+            self.backbone.train()
 
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
         for param in self.GM.parameters():
-            param.requires_grad = False
-
-        self.GM.eval()
+            param.requires_grad = finetune_gm
+            
+        if not finetune_gm:
+            self.GM.eval()
+        else:
+            self.GM.train()
 
         assert conditioning in [
             "no",
@@ -195,11 +200,11 @@ class SeparateAndDiffuse(nn.Module):
         spec_vd = self.wav2spec(vd)  # (B, Mels, T)
         hop_length = self.wav2spec.config.hop_length
         vg = self.GM.decode_batch(
-            mel=spec_vd,
+            spectrogram=spec_vd,
             hop_len=hop_length,
-            fast_sampling=True,
-            fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5],
-        )  # (B, L)
+            #fast_sampling=True,
+            #fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5],
+        ).squeeze(1)  # (B, L)
         vg = vg[:, : vd.shape[1]]
 
         Vg_hat = torch.stft(
