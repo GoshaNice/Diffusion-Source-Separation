@@ -43,6 +43,12 @@ train_exp3:
 train_sepformer:
 	poetry run python train.py -c src/configs/sepformer.json
 
+train_exp4:
+	poetry run python train.py -c src/configs/hifigan_exp4.json
+
+train_exp5:
+	poetry run python train.py -c src/configs/hifigan_exp5.json
+
 validate_main:
 	poetry run python test.py -r saved/models/SeparateAndDiffuse/0427_184315/checkpoint-epoch50.pth -o main_output.json
 

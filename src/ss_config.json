@@ -1,5 +1,5 @@
 {
-  "name": "SeparateAndDiffuse_Baseline",
+  "name": "SeparateAndDiffuse_HIFIGAN",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 8000
@@ -10,7 +10,12 @@
   },
   "arch": {
       "type": "SeparateAndDiffuse",
-      "args": {}
+      "args": {
+        "use_attention": true,
+        "use_post_cnn": true,
+        "finetune_backbone": true,
+        "finetune_gm": false
+      }
   },
   "data": {
       "train": {

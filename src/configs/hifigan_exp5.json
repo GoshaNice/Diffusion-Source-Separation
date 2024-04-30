@@ -1,0 +1,106 @@
+{
+    "name": "SeparateAndDiffuse_HIFIGAN_with_finetune",
+    "n_gpu": 1,
+    "preprocessing": {
+        "sr": 8000
+    },
+    "augmentations": {
+        "wave": [],
+        "spectrogram": []
+    },
+    "arch": {
+        "type": "SeparateAndDiffuse",
+        "args": {
+          "use_attention": true,
+          "use_post_cnn": true,
+          "finetune_backbone": true,
+          "finetune_gm": true
+        }
+    },
+    "data": {
+        "train": {
+            "batch_size": 1,
+            "num_workers": 5,
+            "datasets": [
+                {
+                    "type": "LibrispeechDataset",
+                    "args": {
+                        "part": "train-clean-100",
+                        "max_audio_length": 3.5,
+                        "nfiles": 10000
+                    }
+                }
+            ]
+        },
+        "val": {
+            "batch_size": 1,
+            "num_workers": 5,
+            "datasets": [
+                {
+                    "type": "LibrispeechDataset",
+                    "args": {
+                        "part": "dev-clean",
+                        "test": true,
+                        "limit": 100
+                    }
+                }
+            ]
+        },
+        "test-clean": {
+            "batch_size": 1,
+            "num_workers": 5,
+            "datasets": [
+                {
+                    "type": "LibrispeechDataset",
+                    "args": {
+                        "part": "test-clean",
+                        "test": true,
+                        "limit": 100
+                    }
+                }
+            ]
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.001
+        }
+    },
+    "loss": {
+        "type": "SepDiffLoss",
+        "args": {}
+    },
+    "metrics": [
+        {
+            "type": "SiSDRMetric",
+            "args": {
+                "name": "SiSDR"
+            }
+        },
+        {
+            "type": "PESQMetric",
+            "args": {
+                "name": "PESQ"
+            }
+        }
+    ],
+    "lr_scheduler": {
+      "type": "ExponentialLR",
+      "args": {
+          "gamma": 0.9
+      }
+    },
+    "trainer": {
+        "epochs": 50,
+        "save_dir": "saved/",
+        "save_period": 5,
+        "verbosity": 2,
+        "monitor": "max val_SiSDR",
+        "early_stop": 100,
+        "visualize": "wandb",
+        "wandb_project": "diffusion_ss_project",
+        "len_epoch": 1600,
+        "grad_norm_clip": 10
+    }
+  }

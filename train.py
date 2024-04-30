@@ -16,7 +16,8 @@ from src.trainer import Trainer
 from src.utils import prepare_device
 from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
-from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
+from speechbrain.inference.vocoders import DiffWaveVocoder, HIFIGAN
+from speechbrain.inference.separation import SepformerSeparation
 
 
 # fix random seeds for reproducibility
@@ -37,7 +38,7 @@ def main(config):
 
     # build model architecture, then print to console
     sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
-    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    diffwave = HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-ljspeech", savedir="pretrained_models/tts-hifigan-ljspeech")
     sepformer.device = device
     diffwave.device = device
     model = config.init_obj(config["arch"], module_arch, sepformer, diffwave)
