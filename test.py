@@ -11,8 +11,10 @@ from src.trainer import Trainer
 from src.utils import ROOT_PATH
 from src.utils.object_loading import get_dataloaders
 from src.utils.parse_config import ConfigParser
+from src.loss import SepDiffLoss
 from torchmetrics.audio import ScaleInvariantSignalDistortionRatio
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality
+from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
 import pyloudnorm as pyln
 import torch.nn.functional as F
 import numpy as np
@@ -49,7 +51,11 @@ def main(config, out_file):
     dataloaders = get_dataloaders(config)
 
     # build model architecture
-    model = config.init_obj(config["arch"], module_model)
+    sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
+    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    sepformer.device = device
+    diffwave.device = device
+    model = config.init_obj(config["arch"], module_model, sepformer, diffwave)
     logger.info(model)
 
     logger.info("Loading checkpoint: {} ...".format(config.resume))
@@ -64,44 +70,64 @@ def main(config, out_file):
     model.eval()
 
     calc_sisdr = ScaleInvariantSignalDistortionRatio()
-    calc_pesq = PerceptualEvaluationSpeechQuality(16000, "wb")
+    calc_pesq = PerceptualEvaluationSpeechQuality(8000, mode="nb")
     results = []
     si_sdrs = []
     pesqs = []
-
+    
+    criterion = SepDiffLoss()
 
     with torch.no_grad():
-        for batch_num, batch in enumerate(tqdm(dataloaders["test"])):
+        for batch_num, batch in enumerate(tqdm(dataloaders["test-clean"])):
             batch = Trainer.move_batch_to_device(batch, device)
-            s1, s2, s3, probs = model(**batch)
-            batch["prediction"] = s1
+            
+            batch["prediction"] = model(**batch)
+            noise = batch["noise"]
+            target = batch["target"]
+            
+            prediction_target, prediction_noise, _ = criterion(**batch)
+            prediction_target, target = pad_to_target(prediction_target, target)
+            prediction_noise, noise = pad_to_target(prediction_noise, noise)
 
-            for i in range(len(batch["prediction"])):
-                prediction = batch["prediction"][i]
-                target = batch["target"][i].unsqueeze(0)
-                prediction, target = pad_to_target(prediction, target)
-                prediction = prediction.squeeze(0).detach().cpu().numpy()
-                target = target.squeeze(0).detach().cpu().numpy()
+            prediction_target = prediction_target.squeeze(0).detach().cpu().numpy()
+            target = target.squeeze(0).detach().cpu().numpy()
+            
+            prediction_noise = prediction_noise.squeeze(0).detach().cpu().numpy()
+            noise = noise.squeeze(0).detach().cpu().numpy()
 
-                meter = pyln.Meter(16000) # create BS.1770 meter
-                loud_prediction = meter.integrated_loudness(prediction)
-                loud_target = meter.integrated_loudness(target)
+            meter = pyln.Meter(8000)
+            loud_prediction_target = meter.integrated_loudness(prediction_target)
+            loud_target = meter.integrated_loudness(target)
+            
+            loud_prediction_noise = meter.integrated_loudness(prediction_noise)
+            loud_noise = meter.integrated_loudness(noise)
 
-                prediction = pyln.normalize.loudness(prediction, loud_prediction, -20)
-                target = pyln.normalize.loudness(target, loud_target, -20)
+            prediction_target = pyln.normalize.loudness(prediction_target, loud_prediction_target, -20)
+            target = pyln.normalize.loudness(target, loud_target, -20)
+            
+            prediction_noise = pyln.normalize.loudness(prediction_noise, loud_prediction_noise, -20)
+            noise = pyln.normalize.loudness(noise, loud_noise, -20)
 
-                si_sdr = calc_sisdr(torch.from_numpy(prediction), torch.from_numpy(target))
-                pesq = calc_pesq(torch.from_numpy(prediction), torch.from_numpy(target))
+            si_sdr_target = calc_sisdr(torch.from_numpy(prediction_target), torch.from_numpy(target))
+            pesq_target = calc_pesq(torch.from_numpy(prediction_target), torch.from_numpy(target))
+            
+            si_sdr_noise = calc_sisdr(torch.from_numpy(prediction_noise), torch.from_numpy(noise))
+            pesq_noise = calc_pesq(torch.from_numpy(prediction_noise), torch.from_numpy(noise))
 
-                si_sdrs.append(si_sdr.item())
-                pesqs.append(pesq.item())
+            si_sdrs.append(si_sdr_target.item())
+            pesqs.append(pesq_target.item())
+            
+            si_sdrs.append(si_sdr_noise.item())
+            pesqs.append(pesq_noise.item())
 
-                results.append(
-                    {
-                        "SI-SDR": si_sdr.item(),
-                        "PESQ": pesq.item()
-                    }
-                )
+            results.append(
+                {
+                    "SI-SDR_target": si_sdr_target.item(),
+                    "PESQ_target": pesq_target.item(),
+                    "SI-SDR_noise": si_sdr_noise.item(),
+                    "PESQ_noise": pesq_noise.item(),
+                }
+            )
 
     print("Final_metrics")
     print("SI-SDR: ", sum(si_sdrs) / len(si_sdrs))
@@ -151,7 +177,7 @@ if __name__ == "__main__":
     args.add_argument(
         "-b",
         "--batch-size",
-        default=20,
+        default=1,
         type=int,
         help="Test dataset batch size",
     )
@@ -205,8 +231,9 @@ if __name__ == "__main__":
             }
         }
 
-    assert config.config.get("data", {}).get("test", None) is not None
-    config["data"]["test"]["batch_size"] = args.batch_size
-    config["data"]["test"]["n_jobs"] = args.jobs
+    assert config.config.get("data", {}).get("test-clean", None) is not None
+    config["data"]["test-clean"]["batch_size"] = args.batch_size
+    config["data"]["test-clean"]["n_jobs"] = args.jobs
+    config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 1000
 
     main(config, args.output)

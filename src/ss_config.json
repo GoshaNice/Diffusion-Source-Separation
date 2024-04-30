@@ -1,5 +1,5 @@
 {
-  "name": "SeparateAndDiffuse",
+  "name": "SeparateAndDiffuse_Baseline",
   "n_gpu": 1,
   "preprocessing": {
       "sr": 8000

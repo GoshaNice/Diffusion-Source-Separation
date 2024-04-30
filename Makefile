@@ -27,3 +27,39 @@ test_model:
 
 train:
 	poetry run python train.py -c src/ss_config.json
+
+train_baseline:
+	poetry run python train.py -c src/configs/baseline.json
+
+train_exp1:
+	poetry run python train.py -c src/configs/exp1.json
+
+train_exp2:
+	poetry run python train.py -c src/configs/exp2.json
+
+train_exp3:
+	poetry run python train.py -c src/configs/exp3.json
+
+train_sepformer:
+	poetry run python train.py -c src/configs/sepformer.json
+
+validate_main:
+	poetry run python test.py -r saved/models/SeparateAndDiffuse/0427_184315/checkpoint-epoch50.pth -o main_output.json
+
+validate_baseline:
+	poetry run python test.py -r saved/models/SeparateAndDiffuse_Baseline/0428_102406/checkpoint-epoch50.pth -o baseline_output.json
+
+validate_exp1:
+	poetry run python test.py -r saved/models/Exp1/0428_172955/checkpoint-epoch50.pth -o exp1_output.json
+
+validate_exp2:
+	poetry run python test.py -r saved/models/Exp2/0428_172955/checkpoint-epoch50.pth -o exp2_output.json
+
+validate_exp3:
+	poetry run python test.py -r saved/models/Exp3/0428_172955/checkpoint-epoch50.pth -o exp3_output.json
+
+validate_sepformer:
+	poetry run python test_sepformer.py -r saved/models/SeparateAndDiffuse_Baseline/0428_102406/checkpoint-epoch50.pth -o sepformer_output.json
+
+validate_sepformer_post:
+	poetry run python test.py -r saved/models/Sepformer/0429_235721/checkpoint-epoch50.pth -o sepformer_post_output.json
