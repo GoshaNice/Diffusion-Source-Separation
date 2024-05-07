@@ -64,6 +64,7 @@ class SeparateAndDiffuse(nn.Module):
         use_attention: bool = True,
         use_post_cnn: bool = True,
         finetune_backbone: bool = True,
+        finetune_gm: bool = False,
         num_heads: int = 4
     ):
         super(SeparateAndDiffuse, self).__init__()
@@ -79,7 +80,13 @@ class SeparateAndDiffuse(nn.Module):
         self.wav2spec = MelSpectrogram()
         self.GM = diffwave
         for param in self.GM.parameters():
-            param.requires_grad = False
+            param.requires_grad = finetune_gm
+            
+        if finetune_gm:
+            self.GM.train()
+        else:
+            self.GM.eval()
+
         self.ResnetHeadPhase = ResNetHead()
         self.ResnetHeadMagnitude = ResNetHead()
         
@@ -147,9 +154,10 @@ class SeparateAndDiffuse(nn.Module):
             # vd should be resempled to 22.05khz TODO
             spec_vd = self.wav2spec(vd)  # (B, Mels, T)
             hop_length = self.wav2spec.config.hop_length
-            vg = self.GM.decode_batch(
-                mel=spec_vd,
-                hop_len=hop_length,
+            vg = self.GM.infer(
+                unconditional=False,
+                scale=hop_length,
+                condition=spec_vd.to(self.GM.device),
                 fast_sampling=True,
                 fast_sampling_noise_schedule=[0.0001, 0.001, 0.01, 0.05, 0.2, 0.5],
             )  # (B, L)

@@ -40,6 +40,9 @@ train_exp2:
 train_exp3:
 	poetry run python train.py -c src/configs/exp3.json
 
+train_last_hope:
+	poetry run python train.py -c src/configs/bss_last_hope.json
+
 train_sepformer:
 	poetry run python train.py -c src/configs/sepformer.json
 
