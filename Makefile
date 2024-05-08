@@ -66,3 +66,6 @@ validate_sepformer:
 
 validate_sepformer_post:
 	poetry run python test.py -r saved/models/Sepformer/0429_235721/checkpoint-epoch50.pth -o sepformer_post_output.json
+
+validate_last_hope:
+	poetry run python test.py -r saved/models/SeparateAndDiffuse/0430_234024/checkpoint-epoch50.pth -o last_hope_output.json
