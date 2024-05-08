@@ -14,10 +14,13 @@ from src.utils.parse_config import ConfigParser
 from src.loss import SepDiffLoss
 from torchmetrics.audio import ScaleInvariantSignalDistortionRatio
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality
-from speechbrain.pretrained import SepformerSeparation, DiffWaveVocoder
+from speechbrain.inference.vocoders import DiffWaveVocoder, HIFIGAN
+from speechbrain.inference.separation import SepformerSeparation
 import pyloudnorm as pyln
 import torch.nn.functional as F
 import numpy as np
+from wvmos import get_wvmos
+import torchaudio.functional as AF
 
 def pad_to_target(prediction, target):
         if prediction.shape[-1] > target.shape[-1]:
@@ -52,7 +55,7 @@ def main(config, out_file):
 
     # build model architecture
     sepformer = SepformerSeparation.from_hparams(source="speechbrain/sepformer-wsj02mix", savedir='pretrained_models/sepformer-wsj02mix')
-    diffwave = DiffWaveVocoder.from_hparams(source="speechbrain/tts-diffwave-ljspeech", savedir="pretrained_models/diffwave-ljspeech")
+    diffwave = HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-ljspeech", savedir="pretrained_models/tts-hifigan-ljspeech")
     sepformer.device = device
     diffwave.device = device
     model = config.init_obj(config["arch"], module_model, sepformer, diffwave)
@@ -71,9 +74,14 @@ def main(config, out_file):
 
     calc_sisdr = ScaleInvariantSignalDistortionRatio()
     calc_pesq = PerceptualEvaluationSpeechQuality(8000, mode="nb")
+    calc_stoi = ShortTimeObjectiveIntelligibility(8000, False)
+    calc_wvmos = get_wvmos(cuda=torch.cuda.is_available())
+    calc_wvmos.eval()
     results = []
     si_sdrs = []
     pesqs = []
+    stois = []
+    wvmoses = []
     
     criterion = SepDiffLoss()
 
@@ -85,9 +93,9 @@ def main(config, out_file):
             noise = batch["noise"]
             target = batch["target"]
             
-            prediction_target, prediction_noise, _ = criterion(**batch)
-            prediction_target, target = pad_to_target(prediction_target, target)
-            prediction_noise, noise = pad_to_target(prediction_noise, noise)
+            prediction_target_fresh, prediction_noise_fresh, _ = criterion(**batch)
+            prediction_target, target = pad_to_target(prediction_target_fresh, target)
+            prediction_noise, noise = pad_to_target(prediction_noise_fresh, noise)
 
             prediction_target = prediction_target.squeeze(0).detach().cpu().numpy()
             target = target.squeeze(0).detach().cpu().numpy()
@@ -110,28 +118,46 @@ def main(config, out_file):
 
             si_sdr_target = calc_sisdr(torch.from_numpy(prediction_target), torch.from_numpy(target))
             pesq_target = calc_pesq(torch.from_numpy(prediction_target), torch.from_numpy(target))
+            stoi_target = calc_stoi(torch.from_numpy(prediction_target), torch.from_numpy(target))
+            with torch.no_grad():
+                prediction_target_fresh = AF.resample(prediction_target_fresh, 8000, 16000)
+                wvmos_target = calc_wvmos(prediction_target_fresh)
             
             si_sdr_noise = calc_sisdr(torch.from_numpy(prediction_noise), torch.from_numpy(noise))
             pesq_noise = calc_pesq(torch.from_numpy(prediction_noise), torch.from_numpy(noise))
+            stoi_noise = calc_stoi(torch.from_numpy(prediction_noise), torch.from_numpy(noise))
+            with torch.no_grad():
+                prediction_noise_fresh = AF.resample(prediction_noise_fresh, 8000, 16000)
+                wvmos_noise = calc_wvmos(prediction_noise_fresh)
 
             si_sdrs.append(si_sdr_target.item())
             pesqs.append(pesq_target.item())
+            stois.append(stoi_target.item())
+            wvmoses.append(wvmos_target.item())
             
             si_sdrs.append(si_sdr_noise.item())
             pesqs.append(pesq_noise.item())
+            stois.append(stoi_noise.item())
+            wvmoses.append(wvmos_noise.item())
 
             results.append(
                 {
                     "SI-SDR_target": si_sdr_target.item(),
                     "PESQ_target": pesq_target.item(),
+                    "STOI_target": stoi_target.item(),
+                    "WVMOS_target": wvmos_target.item(),
                     "SI-SDR_noise": si_sdr_noise.item(),
                     "PESQ_noise": pesq_noise.item(),
+                    "STOI_noise": stoi_noise.item(),
+                     "WVMOS_noise": wvmos_noise.item(),
                 }
             )
 
     print("Final_metrics")
     print("SI-SDR: ", sum(si_sdrs) / len(si_sdrs))
     print("PESQ: ", sum(pesqs) / len(pesqs))
+    print("STOI: ", sum(stois) / len(stois))
+    print("WVMOS: ", sum(wvmoses) / len(wvmoses))
 
     with Path(out_file).open("w") as f:
         json.dump(results, f, indent=2)

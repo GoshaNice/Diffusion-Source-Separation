@@ -69,3 +69,9 @@ validate_sepformer:
 
 validate_sepformer_post:
 	poetry run python test.py -r saved/models/Sepformer/0429_235721/checkpoint-epoch50.pth -o sepformer_post_output.json
+
+validate_exp4:
+	poetry run python test.py -r saved/models/SeparateAndDiffuse_HIFIGAN/0430_222110/checkpoint-epoch50.pth -o exp4_output.json
+
+validate_exp5:
+	poetry run python test.py -r saved/models/SeparateAndDiffuse_HIFIGAN_with_finetune/0430_222208/model_best.pth -o exp5_output.json
