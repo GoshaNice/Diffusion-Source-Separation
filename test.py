@@ -7,6 +7,8 @@ import torch
 from tqdm import tqdm
 
 import src.model as module_model
+import src.loss as module_loss
+import src.metric as module_metric
 from src.trainer import Trainer
 from src.utils import ROOT_PATH
 from src.utils.object_loading import get_dataloaders
@@ -14,6 +16,7 @@ from src.utils.parse_config import ConfigParser
 from src.loss import SepDiffLoss
 from torchmetrics.audio import ScaleInvariantSignalDistortionRatio
 from torchmetrics.audio import PerceptualEvaluationSpeechQuality
+from torchmetrics.audio.stoi import ShortTimeObjectiveIntelligibility
 from speechbrain.inference.vocoders import DiffWaveVocoder, HIFIGAN
 from speechbrain.inference.separation import SepformerSeparation
 import pyloudnorm as pyln
@@ -43,7 +46,7 @@ def pad_to_target(prediction, target):
 DEFAULT_CHECKPOINT_PATH = ROOT_PATH / "default_test_model" / "checkpoint.pth"
 
 
-def main(config, out_file):
+def main(config, out_file, resume):
     logger = config.get_logger("test")
 
     # define cpu or gpu if possible
@@ -51,6 +54,8 @@ def main(config, out_file):
     print(f"We are running on {device}")
 
     # setup data_loader instances
+    config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 10
+    config["data"]["val"]["datasets"][0]["args"]["limit"] = 10
     dataloaders = get_dataloaders(config)
 
     # build model architecture
@@ -61,16 +66,49 @@ def main(config, out_file):
     model = config.init_obj(config["arch"], module_model, sepformer, diffwave)
     logger.info(model)
 
-    logger.info("Loading checkpoint: {} ...".format(config.resume))
-    checkpoint = torch.load(config.resume, map_location=device)
+    logger.info("Loading checkpoint: {} ...".format(resume))
+    checkpoint = torch.load(resume, map_location=device)
     state_dict = checkpoint["state_dict"]
     if config["n_gpu"] > 1:
         model = torch.nn.DataParallel(model)
-    model.load_state_dict(state_dict)
 
     # prepare model for testing
     model = model.to(device)
+    #model.eval()
+    
+    loss_module = config.init_obj(config["loss"], module_loss).to(device)
+    metrics = [
+        config.init_obj(metric_dict, module_metric)
+        for metric_dict in config["metrics"]
+    ]
+
+    # build optimizer, learning rate scheduler. delete every line containing lr_scheduler for
+    # disabling scheduler
+    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = config.init_obj(config["optimizer"], torch.optim, trainable_params)
+    lr_scheduler = config.init_obj(config["lr_scheduler"], torch.optim.lr_scheduler, optimizer)
+    #lr_scheduler=None
+    config["trainer"]["epochs"] = 1
+
+    trainer = Trainer(
+        model,
+        loss_module,
+        metrics,
+        optimizer,
+        config=config,
+        device=device,
+        dataloaders=dataloaders,
+        lr_scheduler=lr_scheduler,
+        len_epoch=16,
+    )
+
+    trainer.train()
+    model.load_state_dict(state_dict)
     model.eval()
+    
+    config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 1000
+    config["data"]["val"]["datasets"][0]["args"]["limit"] = 1000
+    dataloaders = get_dataloaders(config)
 
     calc_sisdr = ScaleInvariantSignalDistortionRatio()
     calc_pesq = PerceptualEvaluationSpeechQuality(8000, mode="nb")
@@ -86,7 +124,7 @@ def main(config, out_file):
     criterion = SepDiffLoss()
 
     with torch.no_grad():
-        for batch_num, batch in enumerate(tqdm(dataloaders["test-clean"])):
+        for batch_num, batch in enumerate(tqdm(dataloaders["val"])):
             batch = Trainer.move_batch_to_device(batch, device)
             
             batch["prediction"] = model(**batch)
@@ -225,7 +263,7 @@ if __name__ == "__main__":
     # we assume it is located with checkpoint in the same folder
     model_config = Path(args.resume).parent / "config.json"
     with model_config.open() as f:
-        config = ConfigParser(json.load(f), resume=args.resume)
+        config = ConfigParser(json.load(f))
 
     # update with addition configs from `args.config` if provided
     if args.config is not None:
@@ -262,4 +300,4 @@ if __name__ == "__main__":
     config["data"]["test-clean"]["n_jobs"] = args.jobs
     config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 1000
 
-    main(config, args.output)
+    main(config, args.output, args.resume)
