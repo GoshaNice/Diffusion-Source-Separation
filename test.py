@@ -87,7 +87,7 @@ def main(config, out_file):
 
 
     with torch.no_grad():
-        for batch_num, batch in enumerate(tqdm(dataloaders["test-clean"])):
+        for batch_num, batch in enumerate(tqdm(dataloaders["val"])):
             batch = Trainer.move_batch_to_device(batch, device)
             prediction_raw, prediction = model(**batch)
             batch["prediction"] = prediction
@@ -234,5 +234,9 @@ if __name__ == "__main__":
     config["data"]["test-clean"]["batch_size"] = args.batch_size
     config["data"]["test-clean"]["n_jobs"] = args.jobs
     config["data"]["test-clean"]["datasets"][0]["args"]["limit"] = 1000
+    
+    config["data"]["val"]["batch_size"] = args.batch_size
+    config["data"]["val"]["n_jobs"] = args.jobs
+    config["data"]["val"]["datasets"][0]["args"]["limit"] = 1000
 
     main(config, args.output)
