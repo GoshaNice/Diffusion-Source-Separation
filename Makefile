@@ -85,5 +85,11 @@ validate_experiment_4:
 validate_experiment_5:
 	poetry run python test.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+NoFinetune+SelfAttention+PostCNN/0418_232035/checkpoint-epoch50.pth -o exp5_output.json
 
+validate_experiment_6:
+	poetry run python test.py -r saved/models/HFG_base/0430_225752/checkpoint-epoch50.pth -o dev_exp6_output.json
+
+validate_experiment_7:
+	poetry run python test.py -r saved/models/HFG_finetune_all/0430_225849/model_best.pth -o dev_exp7_output.json
+
 validate_spex:
 	poetry run python test_spex.py -r saved/models/TSSeparateAndDiffuse+GlobalConditioning+NoFinetune+SelfAttention+PostCNN/0418_232035/checkpoint-epoch50.pth -o spex_output.json
