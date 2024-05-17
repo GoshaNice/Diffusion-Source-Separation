@@ -144,14 +144,12 @@ class SeparateAndDiffuse(nn.Module):
         """
         mix: torch.Tensor with shape (B, L) for some reasons B = 1 now
         """
-        # mix should be resempled to 8khz TODO
         output = self.backbone(mix)  # (B, L, 2)
         output = output.squeeze().transpose(0, 1)
         # vd = output[:, :, 0]  # (B, L)
         predictions = []
         for i in range(output.shape[0]):
             vd = output[i : i + 1]  # (B, L)
-            # vd should be resempled to 22.05khz TODO
             spec_vd = self.wav2spec(vd)  # (B, Mels, T)
             hop_length = self.wav2spec.config.hop_length
             vg = self.GM.infer(
