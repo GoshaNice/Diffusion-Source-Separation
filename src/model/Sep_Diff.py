@@ -196,7 +196,6 @@ class SeparateAndDiffuse(nn.Module):
         )  # (B, L, 2)
 
         vd = output["s1"]
-        # vd should be resempled to 22.05khz TODO
         spec_vd = self.wav2spec(vd)  # (B, Mels, T)
         hop_length = self.wav2spec.config.hop_length
         vg = self.GM.infer(

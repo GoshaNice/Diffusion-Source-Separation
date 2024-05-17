@@ -19,14 +19,6 @@ Then you run:
 make install
 ```
 
-
-## Download checkpoint:
-
-```shell
-make download_checkpoint
-```
-The file "model_best.pth" will be in default_test_model/
-
 ## Train model:
 
 ```shell
@@ -51,10 +43,6 @@ You can use:
 ```shell
 poetry run python test.py -r default_test_model/model_best.pth
 ```
-
-## How to train my model
-
-__TODO__
 
 ## Credits
 
